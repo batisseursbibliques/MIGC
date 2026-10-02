@@ -12,7 +12,7 @@ de comptes depuis l'app (module Utilisateurs), personnalisation logo/couleurs pa
 
 ## 1. Créer le projet Firebase (une seule fois)
 
-1. Aller sur https://console.firebase.google.com → Ajouter un projet (ex. "eglise-demo").
+1. Aller sur https://console.firebase.google.com → Ajouter un projet (ex. "missionchristg").
 2. Activer **Authentication** → méthode Email/Mot de passe.
 3. Activer **Firestore Database** (mode production).
 4. Dans Paramètres du projet → Vos applications → ajouter une application Web → copier
@@ -60,7 +60,7 @@ Pour chaque compte créé, il faut ensuite, **avec l'aide de Claude** :
 4. Sur GitHub, aller dans le dépôt → **Settings** → **Secrets and variables** → **Actions**
    → **New repository secret** :
    - Nom `FIREBASE_SERVICE_ACCOUNT`, valeur = le contenu du fichier JSON copié
-   - Nom `FIREBASE_PROJECT_ID`, valeur = l'identifiant du projet Firebase (ex. `eglise-demo`)
+   - Nom `FIREBASE_PROJECT_ID`, valeur = l'identifiant du projet Firebase (ex. `missionchristg`)
 5. C'est fait. Le fichier `.github/workflows/deploy.yml` (déjà inclus dans ce zip) prendra
    le relais automatiquement.
 

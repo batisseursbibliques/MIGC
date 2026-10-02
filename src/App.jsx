@@ -10,7 +10,6 @@ import Login from './pages/Login.jsx'
 import DashboardNational from './pages/DashboardNational.jsx'
 import DashboardAdmin from './pages/DashboardAdmin.jsx'
 import DashboardVicePresident from './pages/DashboardVicePresident.jsx'
-import DashboardOrganisateurNational from './pages/DashboardOrganisateurNational.jsx'
 import DashboardConseillerNational from './pages/DashboardConseillerNational.jsx'
 import DashboardCommissaireComptes from './pages/DashboardCommissaireComptes.jsx'
 import DashboardSecretaireGeneral from './pages/DashboardSecretaireGeneral.jsx'
@@ -61,15 +60,6 @@ const SECTIONS_PAR_ROLE = {
     {
       liens: [
         { icone: '🏠', texte: 'Tableau de bord', page: 'dashboard' },
-      ],
-    },
-  ],
-  organisateur_national: [
-    {
-      liens: [
-        { icone: '📅', texte: 'Réunions BEN', page: 'reunions' },
-        { icone: '✉️', texte: 'Convocations', page: 'convocations' },
-        { icone: '📋', texte: 'Logistique', page: 'logistique' },
       ],
     },
   ],
@@ -181,11 +171,10 @@ const SECTIONS_PAR_ROLE = {
 }
 
 const LABEL_ROLE = {
-  national: 'Président Exécutif National',
+  national: 'Archevêque Fondateur (Président du BEN)',
   admin: 'Gestionnaire de comptes',
   vice_president: 'Vice-Président',
-  organisateur_national: 'Organisateur National',
-  conseiller_national: 'Conseiller National',
+  conseiller_national: 'Conseiller du BEN',
   commissaire_comptes: 'Commissaire aux Comptes',
   secretaire_general: 'Secrétaire Général',
   tresorier_general: 'Trésorier Général',
@@ -299,7 +288,6 @@ function PageContenu({ profil, pageActive, deconnexion }) {
   if (role === 'national') return <DashboardNationalAvecAbsence profil={profil} page={pageActive} deconnexion={deconnexion} />
   if (role === 'admin') return <DashboardAdmin profil={profil} page={pageActive} />
   if (role === 'vice_president') return <DashboardVicePresident profil={profil} />
-  if (role === 'organisateur_national') return <DashboardOrganisateurNational profil={profil} page={pageActive} />
   if (role === 'conseiller_national') return <DashboardConseillerNational profil={profil} page={pageActive} />
   if (role === 'commissaire_comptes') return <DashboardCommissaireComptes profil={profil} page={pageActive} />
   if (role === 'secretaire_general') return <DashboardSecretaireGeneral profil={profil} page={pageActive} />

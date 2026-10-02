@@ -41,10 +41,6 @@ service cloud.firestore {
       return request.auth != null && roleDeUid(request.auth.uid) == 'vice_president';
     }
 
-    function estOrganisateur() {
-      return request.auth != null && roleDeUid(request.auth.uid) == 'organisateur_national';
-    }
-
     function estConseiller() {
       return request.auth != null && roleDeUid(request.auth.uid) == 'conseiller_national';
     }
@@ -56,7 +52,7 @@ service cloud.firestore {
     function estBureauNational() {
       return estNational() || estAdmin() || estVicePresident()
         || estSecretaireGeneral() || estTresorierGeneral()
-        || estOrganisateur() || estConseiller() || estCommissaire();
+        || estConseiller() || estCommissaire();
     }
 
     function estPasteurDe(brancheId) {
@@ -237,17 +233,17 @@ service cloud.firestore {
     // ── Réunions, convocations, logistique BEN ────────────────────────────────
     match /reunionsBEN/{id} {
       allow read: if estBureauNational();
-      allow write: if estNational() || estOrganisateur() || estVicePresident();
+      allow write: if estNational() || estVicePresident();
     }
 
     match /convocationsBEN/{id} {
       allow read: if estBureauNational();
-      allow write: if estNational() || estOrganisateur() || estVicePresident();
+      allow write: if estNational() || estVicePresident();
     }
 
     match /logistiqueBEN/{id} {
       allow read: if estBureauNational();
-      allow write: if estNational() || estOrganisateur() || estVicePresident();
+      allow write: if estNational() || estVicePresident();
     }
 
     // ── Dossiers de conseil et conflits ──────────────────────────────────────
