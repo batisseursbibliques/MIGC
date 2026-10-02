@@ -1,0 +1,37 @@
+name: Seed — Profil national
+
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Créer le profil national
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          UID_NATIONAL: ${{ vars.UID_NATIONAL }}
+        run: |
+          npm install firebase-admin --save-dev
+          node --input-type=module << 'JSEOF'
+          import { initializeApp, cert } from 'firebase-admin/app'
+          import { getFirestore } from 'firebase-admin/firestore'
+          const sa = JSON.parse(process.env.FIREBASE_SA)
+          initializeApp({ credential: cert(sa) })
+          const db = getFirestore()
+          await db.collection('utilisateurs').doc(process.env.UID_NATIONAL).set({
+            nom: 'Prof Georges AVUH — Archevêque Fondateur',
+            role: 'national',
+            brancheId: null,
+            departementId: null,
+          })
+          console.log('Profil national créé')
+          process.exit(0)
+          JSEOF

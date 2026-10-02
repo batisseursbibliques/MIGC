@@ -1,0 +1,118 @@
+import React, { useEffect, useState } from 'react'
+import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../lib/firebase.js'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hook : vérifie si un titulaire est absent (pour l'adjoint/vice)
+// roleId : ex. 'national', 'secretaire_general', 'tresorier_general', 'pasteur_<brancheId>'
+// ─────────────────────────────────────────────────────────────────────────────
+export function useAbsenceTitulaire(roleId) {
+  const [absent, setAbsent] = useState(false)
+  const [chargement, setChargement] = useState(true)
+
+  useEffect(() => {
+    if (!roleId) { setChargement(false); return }
+    return onSnapshot(doc(db, 'absences', roleId), (snap) => {
+      setAbsent(snap.exists() && snap.data().absent === true)
+      setChargement(false)
+    })
+  }, [roleId])
+
+  return { absent, chargement }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Composant bouton pour le TITULAIRE — déclarer son absence / retour
+// ─────────────────────────────────────────────────────────────────────────────
+export function BoutonAbsence({ roleId, nomTitulaire, nomAdjoint }) {
+  const [absent, setAbsent] = useState(false)
+  const [chargement, setChargement] = useState(true)
+  const [enCours, setEnCours] = useState(false)
+
+  useEffect(() => {
+    return onSnapshot(doc(db, 'absences', roleId), (snap) => {
+      setAbsent(snap.exists() && snap.data().absent === true)
+      setChargement(false)
+    })
+  }, [roleId])
+
+  async function basculer() {
+    setEnCours(true)
+    await updateDoc(doc(db, 'absences', roleId), {
+      absent: !absent,
+      depuis: serverTimestamp(),
+      roleId,
+    }).catch(async () => {
+      // Document n'existe pas encore — on le crée
+      const { setDoc } = await import('firebase/firestore')
+      await setDoc(doc(db, 'absences', roleId), {
+        absent: true,
+        depuis: serverTimestamp(),
+        roleId,
+      })
+    })
+    setEnCours(false)
+  }
+
+  if (chargement) return null
+
+  return (
+    <div style={{
+      background: absent ? '#FFF3CD' : '#F0FFF4',
+      border: `1px solid ${absent ? '#C9992C' : '#2E8B57'}`,
+      borderRadius: '4px',
+      padding: '0.75rem 1rem',
+      marginBottom: '1.25rem',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '0.5rem',
+    }}>
+      <div>
+        {absent ? (
+          <p style={{ margin: 0, color: '#7A5C00', fontWeight: 500 }}>
+            🟡 Vous êtes déclaré absent — {nomAdjoint} assure l'intérim avec droits complets.
+          </p>
+        ) : (
+          <p style={{ margin: 0, color: '#1A5C3A', fontWeight: 500 }}>
+            🟢 Vous êtes actif — {nomAdjoint} est en lecture seule.
+          </p>
+        )}
+      </div>
+      <button
+        onClick={basculer}
+        disabled={enCours}
+        className={absent ? 'bouton-secondaire' : 'bouton-lien'}
+        style={absent ? { background: 'var(--sauge)' } : { color: 'var(--erreur)', fontWeight: 600 }}
+      >
+        {enCours ? '…' : absent ? '✓ Je suis de retour' : 'Me déclarer absent'}
+      </button>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bandeau informatif pour l'ADJOINT/VICE — lecture seule ou droits complets
+// ─────────────────────────────────────────────────────────────────────────────
+export function BandeauAdjoint({ absent, nomTitulaire }) {
+  return (
+    <div style={{
+      background: absent ? '#FFF3CD' : '#EAF3FF',
+      border: `1px solid ${absent ? 'var(--ocre)' : 'var(--ligne)'}`,
+      borderRadius: '4px',
+      padding: '0.65rem 1rem',
+      marginBottom: '1.25rem',
+    }}>
+      {absent ? (
+        <p style={{ margin: 0, color: '#7A5C00', fontWeight: 500 }}>
+          🟡 {nomTitulaire} est absent — vous assurez l'intérim avec droits complets.
+        </p>
+      ) : (
+        <p style={{ margin: 0, color: 'var(--texte-doux)' }}>
+          👁 Vue en lecture seule — {nomTitulaire} est actif. Vous obtiendrez les droits complets lorsqu'il se déclare absent.
+        </p>
+      )}
+    </div>
+  )
+}

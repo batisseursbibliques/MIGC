@@ -1,0 +1,309 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Table statique des rôles ──────────────────────────────────────────────
+    // On ajoute ici chaque UID après création du compte.
+    function roleDeUid(uid) {
+      return {
+        "UID_ARCHEVEQUE_A_REMPLACER": "national"
+        // Remplacer par l'UID réel du compte de l'Archevêque Fondateur (console Firebase > Authentication),
+        // puis ajouter ici chaque nouveau compte du BEN après sa création
+      }[uid];
+    }
+
+    // Table statique des branches pour pasteurs, secrétaires et trésoriers locaux
+    function brancheDeUid(uid) {
+      return {
+        "UID_PASTEUR_A_REMPLACER": "ID_BRANCHE_A_REMPLACER"
+      }[uid];
+    }
+
+    // ── Fonctions de rôle ─────────────────────────────────────────────────────
+    function estNational() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'national';
+    }
+
+    function estSecretaireGeneral() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'secretaire_general';
+    }
+
+    function estTresorierGeneral() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'tresorier_general';
+    }
+
+    function estAdmin() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'admin';
+    }
+
+    function estVicePresident() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'vice_president';
+    }
+
+    function estOrganisateur() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'organisateur_national';
+    }
+
+    function estConseiller() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'conseiller_national';
+    }
+
+    function estCommissaire() {
+      return request.auth != null && roleDeUid(request.auth.uid) == 'commissaire_comptes';
+    }
+
+    function estBureauNational() {
+      return estNational() || estAdmin() || estVicePresident()
+        || estSecretaireGeneral() || estTresorierGeneral()
+        || estOrganisateur() || estConseiller() || estCommissaire();
+    }
+
+    function estPasteurDe(brancheId) {
+      return request.auth != null
+        && (roleDeUid(request.auth.uid) == 'pasteur'
+            || roleDeUid(request.auth.uid) == 'pasteur_suppleant')
+        && brancheDeUid(request.auth.uid) == brancheId;
+    }
+
+    function estSecretaireDe(brancheId) {
+      return request.auth != null
+        && (roleDeUid(request.auth.uid) == 'secretaire'
+            || roleDeUid(request.auth.uid) == 'secretaire_adjoint')
+        && brancheDeUid(request.auth.uid) == brancheId;
+    }
+
+    function estTresorierDe(brancheId) {
+      return request.auth != null
+        && (roleDeUid(request.auth.uid) == 'tresorier'
+            || roleDeUid(request.auth.uid) == 'tresorier_adjoint')
+        && brancheDeUid(request.auth.uid) == brancheId;
+    }
+
+    function estDeptDe(brancheId) {
+      return request.auth != null
+        && roleDeUid(request.auth.uid) == 'departement'
+        && brancheDeUid(request.auth.uid) == brancheId;
+    }
+
+    // Le pasteur supervise tout dans sa branche
+    function estResponsableBranche(brancheId) {
+      return estNational() || estPasteurDe(brancheId);
+    }
+
+    // Peut lire les données financières d'une branche
+    function peutLireFinancesBranche(brancheId) {
+      return estResponsableBranche(brancheId)
+        || estTresorierDe(brancheId)
+        || estTresorierGeneral();
+    }
+
+    // Peut lire les données membres/PV/courrier d'une branche
+    function peutLireSecretariatBranche(brancheId) {
+      return estResponsableBranche(brancheId)
+        || estSecretaireDe(brancheId)
+        || estSecretaireGeneral();
+    }
+
+    // ── Profils utilisateurs ──────────────────────────────────────────────────
+    match /utilisateurs/{uid} {
+      allow read: if request.auth != null
+        && (request.auth.uid == uid
+            || estNational()
+            || estAdmin()
+            || estPasteurDe(resource.data.brancheId)
+            || estSecretaireGeneral()
+            || estTresorierGeneral());
+      allow create: if estNational() || estAdmin()
+        || (roleDeUid(request.auth.uid) == 'pasteur'
+            && request.resource.data.role == 'departement'
+            && request.resource.data.brancheId == brancheDeUid(request.auth.uid));
+      allow update: if estAdmin() || estNational();
+      allow delete: if false;
+
+      // Messages du pasteur — privés en brouillon, visibles en "prêt"/"prêché" par le président
+      match /messages/{messageId} {
+        allow read: if request.auth.uid == uid || estNational() || estAdmin();
+        allow write: if request.auth.uid == uid;
+      }
+    }
+
+    // ── Branches ─────────────────────────────────────────────────────────────
+    match /branches/{brancheId} {
+      allow read: if estResponsableBranche(brancheId)
+        || estDeptDe(brancheId)
+        || estSecretaireDe(brancheId)
+        || estTresorierDe(brancheId)
+        || estBureauNational();
+      allow write: if estNational();
+
+      // Membres : secrétaire peut écrire, pasteur et SG lisent
+      match /membres/{membreId} {
+        allow read: if peutLireSecretariatBranche(brancheId);
+        allow write: if estResponsableBranche(brancheId) || estSecretaireDe(brancheId);
+
+        match /suivi/{suiviId} {
+          allow read, write: if estResponsableBranche(brancheId);
+        }
+      }
+
+      // Procès-verbaux : secrétaire rédige, pasteur et SG lisent
+      match /pv/{pvId} {
+        allow read: if peutLireSecretariatBranche(brancheId);
+        allow write: if estSecretaireDe(brancheId) || estResponsableBranche(brancheId);
+      }
+
+      // Courrier : secrétaire rédige, pasteur et SG lisent
+      match /courrier/{courrierId} {
+        allow read: if peutLireSecretariatBranche(brancheId);
+        allow write: if estSecretaireDe(brancheId) || estResponsableBranche(brancheId);
+      }
+
+      // Caisse : trésorier saisit, pasteur et TG lisent
+      match /caisse/{mouvementId} {
+        allow read: if peutLireFinancesBranche(brancheId);
+        allow write: if estTresorierDe(brancheId) || estResponsableBranche(brancheId);
+      }
+
+      // Virements : trésorier ou pasteur déclare, national ou TG valide
+      match /virements/{virementId} {
+        allow read: if peutLireFinancesBranche(brancheId);
+        allow create: if estPasteurDe(brancheId) || estTresorierDe(brancheId);
+        allow update: if estNational() || estTresorierGeneral();
+        allow delete: if false;
+      }
+
+      // Départements
+      match /departements/{deptId} {
+        allow read: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
+        allow write: if estNational() || estPasteurDe(brancheId);
+
+        match /comptesRendus/{crId} {
+          allow read: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
+          allow create: if estDeptDe(brancheId) || estResponsableBranche(brancheId);
+          allow update, delete: if estResponsableBranche(brancheId);
+        }
+      }
+
+      // Projets de branche : trésorier gère, pasteur et TG lisent
+      match /projets/{projetId} {
+        allow read: if peutLireFinancesBranche(brancheId) || estResponsableBranche(brancheId);
+        allow write: if estTresorierDe(brancheId) || estResponsableBranche(brancheId) || estTresorierGeneral();
+
+        match /contributions/{contribId} {
+          allow read: if peutLireFinancesBranche(brancheId) || estResponsableBranche(brancheId);
+          allow write: if estTresorierDe(brancheId) || estResponsableBranche(brancheId);
+        }
+      }
+
+      // Cultes, annonces, événements
+      match /cultes/{culteId} {
+        allow read, write: if estResponsableBranche(brancheId);
+      }
+
+      match /annonces/{annonceId} {
+        allow read: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
+        allow write: if estResponsableBranche(brancheId);
+      }
+
+      match /evenements/{evenementId} {
+        allow read, write: if estResponsableBranche(brancheId);
+      }
+    }
+
+    // ── Collections nationales ────────────────────────────────────────────────
+    match /pvNationaux/{pvId} {
+      allow read: if estBureauNational();
+      allow write: if estNational() || estSecretaireGeneral();
+    }
+
+    match /courrierNational/{courrierId} {
+      allow read: if estBureauNational();
+      allow write: if estNational() || estSecretaireGeneral();
+    }
+
+    match /annoncesNationales/{annonceId} {
+      allow read: if request.auth != null;
+      allow write: if estNational();
+    }
+
+    // ── Gestion des absences (titulaire/adjoint) ──────────────────────────────
+    match /absences/{roleId} {
+      allow read: if request.auth != null;
+      allow write: if estNational() || estSecretaireGeneral() || estTresorierGeneral()
+        || estPasteurDe(roleId.split('_')[1]);
+    }
+
+    // ── Réunions, convocations, logistique BEN ────────────────────────────────
+    match /reunionsBEN/{id} {
+      allow read: if estBureauNational();
+      allow write: if estNational() || estOrganisateur() || estVicePresident();
+    }
+
+    match /convocationsBEN/{id} {
+      allow read: if estBureauNational();
+      allow write: if estNational() || estOrganisateur() || estVicePresident();
+    }
+
+    match /logistiqueBEN/{id} {
+      allow read: if estBureauNational();
+      allow write: if estNational() || estOrganisateur() || estVicePresident();
+    }
+
+    // ── Dossiers de conseil et conflits ──────────────────────────────────────
+    match /dossiersConseil/{id} {
+      allow read: if estNational() || estConseiller() || estVicePresident();
+      allow write: if estConseiller() || estNational();
+    }
+
+    match /conflitsMIGC/{id} {
+      allow read: if estNational() || estConseiller() || estVicePresident();
+      allow write: if estConseiller() || estNational();
+    }
+
+    // ── Commissariat aux comptes ──────────────────────────────────────────────
+    match /rapportsCommissariat/{id} {
+      allow read: if estBureauNational();
+      allow write: if estCommissaire();
+    }
+
+    match /observationsCommissariat/{id} {
+      allow read: if estBureauNational();
+      allow write: if estCommissaire();
+    }
+
+    // ── Projets nationaux ─────────────────────────────────────────────────────
+    match /projetsNationaux/{projetId} {
+      allow read: if estBureauNational();
+      allow write: if estNational() || estTresorierGeneral();
+
+      match /contributions/{contribId} {
+        allow read: if estBureauNational();
+        allow write: if estNational() || estTresorierGeneral();
+      }
+    }
+    // ── Site public : lecture libre, écriture par le Président ────────────────
+    match /siteActualites/{id} { allow read: if true; allow write: if estNational(); }
+    match /siteEvenements/{id} { allow read: if true; allow write: if estNational(); }
+    match /sitePredications/{id} { allow read: if true; allow write: if estNational(); }
+    match /siteAssemblees/{id} { allow read: if true; allow write: if estNational(); }
+
+    // ── Formulaires publics : création libre (champs bornés), lecture par le bureau
+    match /demandesPriere/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['nom','contact','message','date','traite'])
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 2000
+        && request.resource.data.traite == false;
+      allow read, update: if estNational() || estSecretaireGeneral();
+      allow delete: if false;
+    }
+    match /messagesContact/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['nom','contact','message','date','traite'])
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 2000
+        && request.resource.data.traite == false;
+      allow read, update: if estNational() || estSecretaireGeneral();
+      allow delete: if false;
+    }
+  }
+}

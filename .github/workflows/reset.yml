@@ -1,0 +1,65 @@
+name: Réinitialiser l'application de gestion
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Taper SUPPRIMER pour confirmer (irréversible)'
+        required: true
+      email:
+        description: 'E-mail du compte Président National'
+        required: true
+      motdepasse:
+        description: 'Mot de passe temporaire (6 caractères min.)'
+        required: true
+      nom:
+        description: 'Nom affiché'
+        required: true
+        default: 'Prof Georges AVUH — Archevêque Fondateur'
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirmation == 'SUPPRIMER' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Tout supprimer puis recréer le compte principal
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EMAIL: ${{ github.event.inputs.email }}
+          MDP: ${{ github.event.inputs.motdepasse }}
+          NOM: ${{ github.event.inputs.nom }}
+        run: |
+          npm install firebase-admin --no-save
+          node --input-type=module << 'JSEOF'
+          import { initializeApp, cert } from 'firebase-admin/app'
+          import { getFirestore } from 'firebase-admin/firestore'
+          import { getAuth } from 'firebase-admin/auth'
+          initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SA)) })
+          const db = getFirestore(), auth = getAuth()
+          // 1. Comptes de connexion
+          let n = 0, page
+          do {
+            page = await auth.listUsers(1000)
+            const ids = page.users.map((u) => u.uid)
+            if (ids.length) { await auth.deleteUsers(ids); n += ids.length }
+          } while (page.users.length === 1000)
+          console.log('Comptes supprimés :', n)
+          // 2. Données (seul le contenu du site public est conservé)
+          const GARDER = (id) => id.startsWith('site')
+          for (const c of await db.listCollections()) {
+            if (GARDER(c.id)) { console.log('Conservé :', c.id); continue }
+            await db.recursiveDelete(c)
+            console.log('Supprimé :', c.id)
+          }
+          // 3. Nouveau compte principal
+          const u = await auth.createUser({ email: process.env.EMAIL, password: process.env.MDP, displayName: process.env.NOM })
+          await db.collection('utilisateurs').doc(u.uid).set({
+            nom: process.env.NOM, role: 'national', brancheId: null, departementId: null,
+          })
+          console.log('Compte Président National créé :', process.env.EMAIL)
+          process.exit(0)
+          JSEOF
