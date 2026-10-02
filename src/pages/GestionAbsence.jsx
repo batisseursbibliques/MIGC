@@ -57,36 +57,14 @@ export function BoutonAbsence({ roleId, nomTitulaire, nomAdjoint }) {
   if (chargement) return null
 
   return (
-    <div style={{
-      background: absent ? '#FFF3CD' : '#F0FFF4',
-      border: `1px solid ${absent ? '#C9992C' : '#2E8B57'}`,
-      borderRadius: '4px',
-      padding: '0.75rem 1rem',
-      marginBottom: '1.25rem',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: '0.5rem',
-    }}>
-      <div>
-        {absent ? (
-          <p style={{ margin: 0, color: '#7A5C00', fontWeight: 500 }}>
-            🟡 Vous êtes déclaré absent — {nomAdjoint} assure l'intérim avec droits complets.
-          </p>
-        ) : (
-          <p style={{ margin: 0, color: '#1A5C3A', fontWeight: 500 }}>
-            🟢 Vous êtes actif — {nomAdjoint} est en lecture seule.
-          </p>
-        )}
-      </div>
+    <div className="abs-discret">
       <button
         onClick={basculer}
         disabled={enCours}
-        className={absent ? 'bouton-secondaire' : 'bouton-lien'}
-        style={absent ? { background: 'var(--sauge)' } : { color: 'var(--erreur)', fontWeight: 600 }}
+        className={absent ? 'absent' : ''}
+        title={absent ? `Vous êtes déclaré absent : ${nomAdjoint} assure l'intérim. Touchez pour déclarer votre retour.` : `Vous êtes actif : ${nomAdjoint} est en lecture seule. Touchez pour vous déclarer absent.`}
       >
-        {enCours ? '…' : absent ? '✓ Je suis de retour' : 'Me déclarer absent'}
+        <i />{enCours ? '…' : absent ? 'Absent · déclarer mon retour' : 'Actif'}
       </button>
     </div>
   )

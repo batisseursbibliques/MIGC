@@ -30,7 +30,7 @@ const SECTIONS_PAR_ROLE = {
     {
       label: 'Présidence',
       liens: [
-        { icone: '🏠', texte: 'Vue d\'ensemble', page: 'vue' },
+        { icone: '🏠', texte: 'Tableau de bord', page: 'vue' },
         { icone: '⛪', texte: 'Églises locales', page: 'branches' },
         { icone: '📊', texte: 'Rapports financiers', page: 'rapports' },
         { icone: '✍️', texte: 'Messages', page: 'messages' },
@@ -276,7 +276,7 @@ function Contenu() {
 
       {/* Contenu */}
       <main className="contenu">
-        <PageContenu profil={profil} pageActive={pageActive} deconnexion={deconnexion} />
+        <PageContenu profil={profil} pageActive={pageActive} deconnexion={deconnexion} onNaviguer={setPageActive} />
         {mdpOuvert && <ChangerMotDePasse onFermer={() => setMdpOuvert(false)} />}
       </main>
     </div>
@@ -284,10 +284,10 @@ function Contenu() {
 }
 
 // ── Routeur de page ───────────────────────────────────────────────────────────
-function PageContenu({ profil, pageActive, deconnexion }) {
+function PageContenu({ profil, pageActive, deconnexion, onNaviguer }) {
   const role = profil.role
 
-  if (role === 'national') return <DashboardNationalAvecAbsence profil={profil} page={pageActive} deconnexion={deconnexion} />
+  if (role === 'national') return <DashboardNationalAvecAbsence profil={profil} page={pageActive} deconnexion={deconnexion} onNaviguer={onNaviguer} />
   if (role === 'admin') return <DashboardAdmin profil={profil} page={pageActive} />
   if (role === 'vice_president') return <DashboardVicePresident profil={profil} />
   if (role === 'conseiller_national') return <DashboardConseillerNational profil={profil} page={pageActive} />
@@ -304,11 +304,11 @@ function PageContenu({ profil, pageActive, deconnexion }) {
   return null
 }
 
-function DashboardNationalAvecAbsence({ profil, page, deconnexion }) {
+function DashboardNationalAvecAbsence({ profil, page, deconnexion, onNaviguer }) {
   return (
     <div>
       <BoutonAbsence roleId="national" nomTitulaire={profil?.nom ?? 'Président'} nomAdjoint="le Vice-Président" />
-      <DashboardNational page={page} deconnexion={deconnexion} />
+      <DashboardNational page={page} deconnexion={deconnexion} onNaviguer={onNaviguer} />
     </div>
   )
 }

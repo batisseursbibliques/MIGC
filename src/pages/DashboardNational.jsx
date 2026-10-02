@@ -12,8 +12,9 @@ import VueMessagesPresident from './VueMessagesPresident.jsx'
 import GestionMessages from './GestionMessages.jsx'
 import DashboardUtilisateurs from './DashboardUtilisateurs.jsx'
 import GestionSite from './GestionSite.jsx'
+import TableauDeBordNational from './TableauDeBordNational.jsx'
 
-export default function DashboardNational({ page = 'vue', deconnexion }) {
+export default function DashboardNational({ page = 'vue', deconnexion, onNaviguer = () => {} }) {
   const { user, profil } = useAuth()
   const onglet = page
   const [branches, setBranches] = useState([])
@@ -22,16 +23,6 @@ export default function DashboardNational({ page = 'vue', deconnexion }) {
   useEffect(() => {
     const q = query(collection(db, 'branches'), orderBy('nom'))
     return onSnapshot(q, (snap) => setBranches(snap.docs.map((d) => ({ id: d.id, ...d.data() }))))
-  }, [])
-
-  useEffect(() => {
-    // Nécessite un index composite (Firestore proposera un lien de création au premier lancement)
-    const q = query(collectionGroup(db, 'virements'), where('statut', '==', 'declare'))
-    return onSnapshot(q, (snap) => setVirements(snap.docs.map((d) => ({
-      id: d.id,
-      brancheId: d.ref.parent.parent.id,
-      ...d.data(),
-    }))))
   }, [])
 
   async function validerVirement(v) {
@@ -46,37 +37,7 @@ export default function DashboardNational({ page = 'vue', deconnexion }) {
   return (
     <div>
       {onglet === 'vue' && (
-        <div className="grille-deux">
-          <section className="carte">
-            <h2 className="titre-carte">Églises locales ({branches.length})</h2>
-            <ul className="liste">
-              {branches.map((b) => (
-                <li key={b.id} className="ligne-liste">
-                  <span>{b.nom}</span>
-                  <span className="etiquette">{b.ville}</span>
-                </li>
-              ))}
-              {branches.length === 0 && <p className="note">Aucune branche enregistrée pour l'instant.</p>}
-            </ul>
-          </section>
-
-          <section className="carte">
-            <h2 className="titre-carte">Reversements en attente de validation</h2>
-            <ul className="liste">
-              {virements.map((v) => {
-                const branche = branches.find((b) => b.id === v.brancheId)
-                return (
-                  <li key={v.id} className="ligne-liste">
-                    <span>{branche?.nom ?? v.brancheId}</span>
-                    <span>{v.montant.toLocaleString('fr-FR')} FCFA — réf. {v.reference || '—'}</span>
-                    <button className="bouton-secondaire" onClick={() => validerVirement(v)}>Valider</button>
-                  </li>
-                )
-              })}
-              {virements.length === 0 && <p className="note">Aucun virement en attente.</p>}
-            </ul>
-          </section>
-        </div>
+        <TableauDeBordNational profil={profil} branches={branches} onNaviguer={onNaviguer} onValider={validerVirement} />
       )}
 
       {onglet === 'branches' && (
