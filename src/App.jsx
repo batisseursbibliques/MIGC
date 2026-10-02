@@ -194,6 +194,8 @@ function Contenu() {
   const [tiroirOuvert, setTiroirOuvert] = useState(false)
   const [pageActive, setPageActive] = useState(null)
   const [mdpOuvert, setMdpOuvert] = useState(false)
+  // Mot de passe temporaire : on invite l'utilisateur à le changer dès la première connexion
+  useEffect(() => { if (profil?.mdpTemporaire) setMdpOuvert(true) }, [profil])
 
   // Page par défaut selon le rôle
   useEffect(() => {

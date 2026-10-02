@@ -1,0 +1,49 @@
+name: Créer le compte de l'Archevêque (une seule fois)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  creer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Créer le compte et le profil national, puis renseigner l'UID dans les règles
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          EMAIL: ${{ secrets.ARCHEVEQUE_EMAIL }}
+          MDP: ${{ secrets.ARCHEVEQUE_MDP_TEMP }}
+        run: |
+          npm install firebase-admin --no-save
+          node --input-type=module << 'JSEOF'
+          import { initializeApp, cert } from 'firebase-admin/app'
+          import { getFirestore } from 'firebase-admin/firestore'
+          import { getAuth } from 'firebase-admin/auth'
+          import { readFileSync, writeFileSync } from 'fs'
+          initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SA)) })
+          const auth = getAuth(), db = getFirestore()
+          const NOM = 'Archevêque Prof. Georges S. A. AVUH'
+          let u
+          try { u = await auth.getUserByEmail(process.env.EMAIL); await auth.updateUser(u.uid, { password: process.env.MDP, displayName: NOM }) }
+          catch { u = await auth.createUser({ email: process.env.EMAIL, password: process.env.MDP, displayName: NOM }) }
+          await db.collection('utilisateurs').doc(u.uid).set({
+            nom: NOM, role: 'national', brancheId: null, departementId: null, mdpTemporaire: true,
+          })
+          let r = readFileSync('firestore.rules', 'utf8')
+          r = r.replace('UID_ARCHEVEQUE_A_REMPLACER', u.uid)
+          writeFileSync('firestore.rules', r)
+          console.log('Compte créé')
+          JSEOF
+      - name: Enregistrer les règles mises à jour
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add firestore.rules
+          git commit -m "Règles : UID de l'Archevêque renseigné" || echo "rien à commiter"
+          git push

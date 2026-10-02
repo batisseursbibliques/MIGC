@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth'
-import { auth } from '../lib/firebase.js'
+import { doc, updateDoc } from 'firebase/firestore'
+import { auth, db } from '../lib/firebase.js'
 
 export default function ChangerMotDePasse({ onFermer }) {
   const [actuel, setActuel] = useState('')
@@ -18,6 +19,7 @@ export default function ChangerMotDePasse({ onFermer }) {
       const u = auth.currentUser
       await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, actuel))
       await updatePassword(u, nouveau)
+      try { await updateDoc(doc(db, 'utilisateurs', u.uid), { mdpTemporaire: false }) } catch { /* sans effet si le profil n'est pas modifiable par son titulaire */ }
       setMsg({ ok: true, t: 'Mot de passe modifié.' })
       setActuel(''); setNouveau(''); setConfirme('')
     } catch (err) {
