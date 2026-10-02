@@ -7,7 +7,7 @@ service cloud.firestore {
     // On ajoute ici chaque UID après création du compte.
     function roleDeUid(uid) {
       return {
-        "UID_ARCHEVEQUE_A_REMPLACER": "national"
+        "7SBbwTe2ZDgKM69xrxAymVmxOhH3": "national"
         // Remplacer par l'UID réel du compte de l'Archevêque Fondateur (console Firebase > Authentication),
         // puis ajouter ici chaque nouveau compte du BEN après sa création
       }[uid];
