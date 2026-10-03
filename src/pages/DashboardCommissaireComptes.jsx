@@ -4,6 +4,8 @@ import {
   collectionGroup, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterRapportCommissaire, exporterRapportsCommissaire, exporterObservations } from '../lib/exports.js'
 
 const TYPES_MOUVEMENT = [
   { valeur: 'dime', label: 'Dîme' },
@@ -170,7 +172,7 @@ function RapportAnnuel({ uid }) {
         </form>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Rapports déposés ({rapports.length})</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Rapports déposés ({rapports.length})</h2><BoutonPdf label="Liste en PDF" onExport={() => exporterRapportsCommissaire(rapports)} disabled={rapports.length === 0} /></div>
         <ul className="liste">
           {rapports.map((r) => {
             const avisLabel = { favorable: '✅ Favorable', favorable_reserves: '⚠️ Avec réserves', defavorable: '❌ Défavorable' }[r.avis] ?? r.avis
@@ -181,6 +183,7 @@ function RapportAnnuel({ uid }) {
                   <span className="etiquette">{avisLabel}</span>
                 </div>
                 {r.conclusion && <p className="note" style={{ margin: '0.25rem 0 0' }}>{r.conclusion.slice(0, 120)}…</p>}
+                <div style={{ marginTop: '0.4rem' }}><BoutonPdf petit label="Ce rapport en PDF" onExport={() => exporterRapportCommissaire(r)} /></div>
               </li>
             )
           })}
@@ -220,7 +223,7 @@ function ObservationsCommissaire({ uid }) {
         </form>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Observations ({obs.length})</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Observations ({obs.length})</h2><BoutonPdf onExport={() => exporterObservations(obs)} disabled={obs.length === 0} /></div>
         <ul className="liste">
           {obs.map((o) => (
             <li key={o.id} className="ligne-liste-verticale">

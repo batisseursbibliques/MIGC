@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { collection, addDoc, onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterEvenements } from '../lib/exports.js'
 
 const TYPES_EVENEMENT = [
   { valeur: 'bapteme', label: 'Baptême' },
@@ -11,6 +13,8 @@ const TYPES_EVENEMENT = [
 
 export default function DashboardEvenements({ brancheId }) {
   const [evenements, setEvenements] = useState([])
+  const [nomEglise, setNomEglise] = useState('')
+  useEffect(() => { import('firebase/firestore').then(({ getDoc, doc }) => getDoc(doc(db, 'branches', brancheId)).then((x) => x.exists() && setNomEglise(x.data().nom))) }, [brancheId])
   const [type, setType] = useState('bapteme')
   const [date, setDate] = useState('')
   const [personnesConcernees, setPersonnesConcernees] = useState('')
@@ -56,7 +60,7 @@ export default function DashboardEvenements({ brancheId }) {
       </section>
 
       <section className="carte">
-        <h2 className="titre-carte">Historique ({evenements.length})</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Historique ({evenements.length})</h2><BoutonPdf label="Registre en PDF" onExport={() => exporterEvenements(evenements, { eglise: nomEglise })} disabled={evenements.length === 0} /></div>
         <ul className="liste">
           {evenements.map((ev) => (
             <li key={ev.id} className="ligne-liste">

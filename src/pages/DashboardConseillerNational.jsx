@@ -4,13 +4,15 @@ import {
   doc, updateDoc, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
+import { AccueilConseiller } from './AccueilRoles.jsx'
 
-export default function DashboardConseillerNational({ profil , page = 'dossiers'}) {
+export default function DashboardConseillerNational({ profil , page = 'accueil', onNaviguer = () => {} }) {
   const onglet = page
 
   return (
     <div>
-      <h1 className="titre-page">Conseiller National — MIGC</h1>
+      {onglet !== 'accueil' && <h1 className="titre-page">Conseiller du BEN — MIGC</h1>}
+      {onglet === 'accueil' && <AccueilConseiller profil={profil} onNaviguer={onNaviguer} />}
       {onglet === 'dossiers' && <DossierConseil uid={profil.uid} />}
       {onglet === 'conflits' && <GestionConflits uid={profil.uid} />}
       {onglet === 'notes' && <NotesConseiller uid={profil.uid} />}

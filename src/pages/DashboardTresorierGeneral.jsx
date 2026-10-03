@@ -4,6 +4,7 @@ import { db } from '../lib/firebase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 import GestionProjets from './GestionProjets.jsx'
+import { AccueilTG } from './AccueilRoles.jsx'
 import BoutonPdf from '../components/BoutonPdf.jsx'
 import { exporterJournalCaisse, exporterVirements } from '../lib/exports.js'
 
@@ -14,13 +15,14 @@ const TYPES_MOUVEMENT = [
   { valeur: 'depense', label: 'Dépense' },
 ]
 
-export default function DashboardTresorierGeneral({ profil , page = 'virements'}) {
+export default function DashboardTresorierGeneral({ profil , page = 'accueil', onNaviguer = () => {} }) {
   const { user } = useAuth()
   const onglet = page
 
   return (
     <div>
       <h1 className="titre-page">Trésorerie Générale du BEN — MIGC</h1>
+      {onglet === 'accueil' && <AccueilTG profil={profil} onNaviguer={onNaviguer} />}
       {onglet === 'virements' && <GestionVirements uid={user?.uid} />}
       {onglet === 'consolidation' && <ConsolidationFinanciere />}
       {onglet === 'branches' && <CaissesBranches />}

@@ -3,21 +3,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Table statique des rôles ──────────────────────────────────────────────
-    // On ajoute ici chaque UID après création du compte.
-    function roleDeUid(uid) {
-      return {
-        "7SBbwTe2ZDgKM69xrxAymVmxOhH3": "national"
-        // Remplacer par l'UID réel du compte de l'Archevêque Fondateur (console Firebase > Authentication),
-        // puis ajouter ici chaque nouveau compte du BEN après sa création
-      }[uid];
+    // ── Rôles lus dans la fiche de l'utilisateur (collection utilisateurs) ────
+    // Plus besoin d'ajouter des UID ici : l'Archevêque crée les comptes dans l'application.
+    // Seuls l'Archevêque et l'admin peuvent modifier une fiche (voir plus bas).
+    // L'UID ci-dessous est un accès de secours permanent pour l'Archevêque Fondateur.
+    function ficheExiste(uid) {
+      return exists(/databases/$(database)/documents/utilisateurs/$(uid));
     }
 
-    // Table statique des branches pour pasteurs, secrétaires et trésoriers locaux
+    function roleDeUid(uid) {
+      return uid == "7SBbwTe2ZDgKM69xrxAymVmxOhH3" ? "national"
+        : (ficheExiste(uid)
+            ? get(/databases/$(database)/documents/utilisateurs/$(uid)).data.get('role', null)
+            : null);
+    }
+
     function brancheDeUid(uid) {
-      return {
-        "UID_PASTEUR_A_REMPLACER": "ID_BRANCHE_A_REMPLACER"
-      }[uid];
+      return ficheExiste(uid)
+        ? get(/databases/$(database)/documents/utilisateurs/$(uid)).data.get('brancheId', null)
+        : null;
     }
 
     // ── Fonctions de rôle ─────────────────────────────────────────────────────
@@ -114,7 +118,9 @@ service cloud.firestore {
         || (roleDeUid(request.auth.uid) == 'pasteur'
             && request.resource.data.role == 'departement'
             && request.resource.data.brancheId == brancheDeUid(request.auth.uid));
-      allow update: if estAdmin() || estNational();
+      allow update: if estAdmin() || estNational()
+        || (request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mdpTemporaire']));
       allow delete: if false;
 
       // Messages du pasteur — privés en brouillon, visibles en "prêt"/"prêché" par le président
@@ -169,10 +175,32 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Rappels du pasteur à ses collaborateurs
+      match /rappels/{rId} {
+        allow read: if estResponsableBranche(brancheId) || resource.data.pourUid == request.auth.uid;
+        allow create: if estResponsableBranche(brancheId)
+          && request.resource.data.message is string
+          && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 1000;
+        allow update: if estResponsableBranche(brancheId)
+          || (resource.data.pourUid == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lu', 'luLe']));
+        allow delete: if estResponsableBranche(brancheId);
+      }
+
       // Départements
       match /departements/{deptId} {
         allow read: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
         allow write: if estNational() || estPasteurDe(brancheId);
+
+        // Équipe et tâches du ministère : le responsable gère, le pasteur lit et peut corriger
+        match /membres/{mId} {
+          allow read: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
+          allow write: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
+        }
+        match /taches/{tId} {
+          allow read: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
+          allow write: if estResponsableBranche(brancheId) || estDeptDe(brancheId);
+        }
 
         match /comptesRendus/{crId} {
           allow read: if estResponsableBranche(brancheId) || estDeptDe(brancheId);

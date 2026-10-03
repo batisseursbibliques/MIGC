@@ -1,4 +1,4 @@
-import { chercherVerset, VERSIONS } from '../lib/bible.js'
+import { lireVersets, VERSIONS, lienAutresVersions } from '../lib/bible.js'
 import BoutonPdf from '../components/BoutonPdf.jsx'
 import { exporterMessage } from '../lib/exports.js'
 import React, { useEffect, useState, useRef } from 'react'
@@ -56,7 +56,7 @@ function TexteAvecVersets({ texte, onVersetClick }) {
 // Fenêtre popup verset — texte biblique via getBible (voir src/lib/bible.js)
 // ─────────────────────────────────────────────────────────────────────────────
 function PopupVerset({ reference, onFermer }) {
-  const [version, setVersion] = useState('ls1910')
+  const [version, setVersion] = useState('lsg')
   const [resultat, setResultat] = useState(null)
   const [chargement, setChargement] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -64,17 +64,17 @@ function PopupVerset({ reference, onFermer }) {
   useEffect(() => {
     let annule = false
     setChargement(true); setErreur(''); setResultat(null)
-    chercherVerset(reference, version)
-      .then((r) => { if (!annule) { setResultat(r); setChargement(false) } })
-      .catch((e) => {
-        if (annule) return
-        setErreur(e.code === 'RESEAU'
-          ? "Impossible de joindre le service biblique. Vérifiez votre connexion et réessayez."
-          : e.code === 'ABSENT'
+    lireVersets(reference, version).then((r) => {
+      if (annule) return
+      if (r.erreur) {
+        setErreur(r.erreur === 'reseau'
+          ? 'Impossible de charger cette version. Vérifiez votre connexion et réessayez.'
+          : r.erreur === 'introuvable'
             ? "Ce passage n'existe pas dans cette version. Vérifiez le chapitre et les versets."
             : 'Référence non reconnue. Écrivez par exemple « Jean 3:16 », « 1 Corinthiens 13:4-7 » ou « Psaumes 23 ».')
-        setChargement(false)
-      })
+      } else setResultat(r)
+      setChargement(false)
+    })
     return () => { annule = true }
   }, [reference, version])
 
@@ -105,6 +105,7 @@ function PopupVerset({ reference, onFermer }) {
         </select>
 
         {chargement && <p className="note">Chargement…</p>}
+        <p className="note" style={{ fontSize: '0.8rem' }}>Autres versions (Semeur, S21…) : <a href={lienAutresVersions(reference)} target="_blank" rel="noreferrer">ouvrir sur BibleGateway</a></p>
         {erreur && <p className="alerte">{erreur}</p>}
         {resultat && (
           <div style={{ fontSize: '1.05rem', lineHeight: 1.7 }}>

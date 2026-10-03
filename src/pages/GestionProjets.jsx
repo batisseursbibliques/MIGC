@@ -4,6 +4,8 @@ import {
   serverTimestamp, updateDoc, increment,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterProjets, exporterProjet } from '../lib/exports.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Composant principal — reçoit brancheId (branche locale) ou null (national)
@@ -62,6 +64,7 @@ export default function GestionProjets({ brancheId, uid, lectureSeule = false })
         <h2 className="titre-carte" style={{ margin: 0 }}>
           {brancheId ? "Projets de l'église locale" : 'Projets du BEN'}
         </h2>
+        <BoutonPdf label="Liste en PDF" onExport={() => exporterProjets(projets, { titre: brancheId ? "Projets de l'église locale" : 'Projets du BEN' })} disabled={projets.length === 0} />
         {!lectureSeule && (
           <button className="bouton-principal" onClick={() => setVue('creer')}>
             + Nouveau projet
@@ -146,7 +149,7 @@ function FormulaireCreerProjet({ brancheId, uid, onRetour }) {
 
   return (
     <div>
-      <button className="bouton-lien" onClick={onRetour} style={{ marginBottom: '1rem' }}>← Retour aux projets</button>
+      <div className="barre-titre"><button className="bouton-lien" onClick={onRetour}>← Retour aux projets</button><BoutonPdf label="Ce projet en PDF" onExport={() => exporterProjet(projet, contributions)} /></div>
       <section className="carte" style={{ maxWidth: '520px' }}>
         <h2 className="titre-carte">Créer un nouveau projet</h2>
         <form onSubmit={creer} className="formulaire">

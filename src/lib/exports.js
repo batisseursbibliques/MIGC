@@ -122,3 +122,97 @@ export function exporterMessage(m, { auteur } = {}) {
     nomFichier: `message-${m.titre ?? 'sans-titre'}`,
   })
 }
+
+const TYPES_CULTE = { dominical: 'Culte dominical', semaine: 'Culte en semaine', special: 'Culte spécial' }
+const TYPES_EVENEMENT = { bapteme: 'Baptême', mariage: 'Mariage', dedicace: "Dédicace d'enfant", funerailles: 'Funérailles' }
+const AVIS = { favorable: 'Favorable', favorable_reserves: 'Favorable avec réserves', defavorable: 'Défavorable' }
+
+export function exporterCultes(cultes, { eglise } = {}) {
+  const liste = [...cultes].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+  return exporterTableau({
+    titre: 'Registre des cultes', eglise, paysage: true,
+    colonnes: [
+      { titre: 'N°', valeur: (c) => c._n, largeur: 12 }, { titre: 'Date', valeur: (c) => `${dateFr(c.date)}${c.heure ? ` à ${c.heure}` : ''}`, largeur: 36 },
+      { titre: 'Type', valeur: (c) => TYPES_CULTE[c.type] ?? c.type, largeur: 40 }, { titre: 'Thème', valeur: (c) => c.theme || '—' },
+      { titre: 'Prédicateur', valeur: (c) => c.predicateur || '—', largeur: 45 }, { titre: 'Présents', valeur: (c) => (c.presence?.total ?? '—'), align: 'right', largeur: 24 },
+    ],
+    lignes: liste.map((c, i) => ({ ...c, _n: num(i) })), resume: [['Nombre de cultes', String(liste.length)]], nomFichier: `registre-cultes-${eglise ?? 'migc'}`,
+  })
+}
+
+export function exporterEvenements(evenements, { eglise } = {}) {
+  const liste = [...evenements].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+  return exporterTableau({
+    titre: 'Registre des événements (baptêmes, mariages, dédicaces, funérailles)', eglise,
+    colonnes: [
+      { titre: 'N°', valeur: (e) => e._n, largeur: 12 }, { titre: 'Date', valeur: (e) => dateFr(e.date), largeur: 28 },
+      { titre: 'Nature', valeur: (e) => TYPES_EVENEMENT[e.type] ?? e.type, largeur: 38 }, { titre: 'Personnes concernées', valeur: (e) => e.personnesConcernees || '—' },
+      { titre: 'Notes', valeur: (e) => e.notes || '—' },
+    ],
+    lignes: liste.map((e, i) => ({ ...e, _n: num(i) })), paysage: true, resume: [['Nombre d\'événements', String(liste.length)]], nomFichier: `registre-evenements-${eglise ?? 'migc'}`,
+  })
+}
+
+export function exporterProjets(projets, { eglise, titre = 'Liste des projets' } = {}) {
+  return exporterTableau({
+    titre, eglise, paysage: true,
+    colonnes: [
+      { titre: 'N°', valeur: (p) => p._n, largeur: 12 }, { titre: 'Projet', valeur: (p) => p.nom },
+      { titre: 'Période', valeur: (p) => (p.dateDebut || p.dateFin ? `${dateFr(p.dateDebut)} → ${dateFr(p.dateFin)}` : '—'), largeur: 48 },
+      { titre: 'Objectif', valeur: (p) => (p.objectif > 0 ? fcfa(p.objectif) : '—'), align: 'right', largeur: 34 },
+      { titre: 'Reçu', valeur: (p) => fcfa(p.totalRecu), align: 'right', largeur: 34 }, { titre: 'Promis', valeur: (p) => fcfa(p.totalPromis), align: 'right', largeur: 34 },
+    ],
+    lignes: projets.map((p, i) => ({ ...p, _n: num(i) })), resume: [['Nombre de projets', String(projets.length)]], nomFichier: `projets-${eglise ?? 'migc'}`,
+  })
+}
+
+// Un projet avec toutes ses contributions
+export function exporterProjet(projet, contributions, { eglise } = {}) {
+  const t = (c) => (c.creeLe?.toDate ? c.creeLe.toDate().getTime() : 0)
+  const liste = [...contributions].sort((a, b) => t(a) - t(b))
+  const recu = liste.filter((c) => !c.externe).reduce((s, c) => s + (c.totalVerse ?? c.montant ?? 0), 0)
+  const exterieur = liste.filter((c) => c.externe).reduce((s, c) => s + (c.montant ?? 0), 0)
+  const promis = liste.filter((c) => c.promesse > 0 && !c.externe).reduce((s, c) => s + c.promesse, 0)
+  const resume = [['Objectif', projet.objectif > 0 ? fcfa(projet.objectif) : 'non défini'], ['Total reçu des membres', fcfa(recu)], ['Total promis', fcfa(promis)]]
+  if (exterieur > 0) resume.push(['Contributions extérieures', fcfa(exterieur)])
+  return exporterTableau({
+    titre: `Projet : ${projet.nom}`, sousTitre: projet.description || undefined, eglise, resume,
+    colonnes: [
+      { titre: 'N°', valeur: (c) => c._n, largeur: 12 }, { titre: 'Contributeur', valeur: (c) => c.nomMembre },
+      { titre: 'Nature', valeur: (c) => (c.externe ? 'Extérieur' : c.promesse > 0 ? 'Promesse' : 'Contribution'), largeur: 30 },
+      { titre: 'Promis', valeur: (c) => (c.promesse > 0 ? fcfa(c.promesse) : '—'), align: 'right', largeur: 36 },
+      { titre: 'Versé', valeur: (c) => fcfa(c.externe || !(c.promesse > 0) ? (c.montant ?? c.totalVerse ?? 0) : (c.totalVerse ?? 0)), align: 'right', largeur: 36 },
+    ],
+    lignes: liste.map((c, i) => ({ ...c, _n: num(i) })), nomFichier: `projet-${projet.nom}`,
+  })
+}
+
+export function exporterRapportCommissaire(r) {
+  return exporterDocument({
+    titre: `Rapport du Commissariat aux comptes — exercice ${r.annee}`, infos: [['Avis', AVIS[r.avis] ?? r.avis], ['Déposé le', dateFr(r.deposeL)]],
+    rubriques: [{ titre: 'Constats et analyse', texte: r.contenu }, { titre: 'Conclusion', texte: r.conclusion }], nomFichier: `rapport-commissariat-${r.annee}`,
+  })
+}
+
+export function exporterRapportsCommissaire(rapports) {
+  return exporterTableau({
+    titre: 'Rapports annuels du Commissariat aux comptes',
+    colonnes: [
+      { titre: 'Exercice', valeur: (r) => r.annee, largeur: 24 }, { titre: 'Avis', valeur: (r) => AVIS[r.avis] ?? r.avis, largeur: 44 },
+      { titre: 'Déposé le', valeur: (r) => dateFr(r.deposeL), largeur: 28 }, { titre: 'Conclusion', valeur: (r) => r.conclusion || '—' },
+    ],
+    lignes: rapports, paysage: false, nomFichier: 'rapports-commissariat',
+  })
+}
+
+export function exporterObservations(observations) {
+  const t = (o) => (o.creeLe?.toDate ? o.creeLe.toDate().getTime() : 0)
+  return exporterTableau({
+    titre: 'Observations du Commissariat aux comptes',
+    colonnes: [
+      { titre: 'N°', valeur: (o) => o._n, largeur: 12 }, { titre: 'Date', valeur: (o) => dateFr(o.creeLe ?? o.date), largeur: 28 },
+      { titre: 'Destinataire', valeur: (o) => o.cible, largeur: 34 }, { titre: 'Observation', valeur: (o) => o.texte },
+    ],
+    lignes: [...observations].sort((a, b) => t(a) - t(b)).map((o, i) => ({ ...o, _n: num(i) })), nomFichier: 'observations-commissariat',
+  })
+}

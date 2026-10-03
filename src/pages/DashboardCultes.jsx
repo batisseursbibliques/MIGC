@@ -3,6 +3,8 @@ import {
   collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterCultes } from '../lib/exports.js'
 
 const TYPES_CULTE = [
   { valeur: 'dominical', label: 'Culte dominical' },
@@ -12,6 +14,8 @@ const TYPES_CULTE = [
 
 export default function DashboardCultes({ profil }) {
   const { brancheId, uid } = profil
+  const [nomEglise, setNomEglise] = useState('')
+  useEffect(() => { import('firebase/firestore').then(({ getDoc, doc }) => getDoc(doc(db, 'branches', brancheId)).then((x) => x.exists() && setNomEglise(x.data().nom))) }, [brancheId])
   const [cultes, setCultes] = useState([])
   const [culteSelectionne, setCulteSelectionne] = useState(null)
 
@@ -72,7 +76,7 @@ export default function DashboardCultes({ profil }) {
           <button type="submit" className="bouton-principal">Programmer</button>
         </form>
 
-        <h2 className="titre-carte" style={{ marginTop: '2rem' }}>Cultes</h2>
+        <div className="barre-titre" style={{ marginTop: '2rem' }}><h2 className="titre-carte">Cultes</h2><BoutonPdf label="Registre en PDF" onExport={() => exporterCultes(cultes, { eglise: nomEglise })} disabled={cultes.length === 0} /></div>
         <ul className="liste">
           {cultes.map((c) => (
             <li
