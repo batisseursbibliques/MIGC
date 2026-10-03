@@ -1,3 +1,4 @@
+import { chercherVerset, VERSIONS } from '../lib/bible.js'
 import React, { useEffect, useState, useRef } from 'react'
 import {
   collection, addDoc, onSnapshot, orderBy, query, doc,
@@ -50,40 +51,29 @@ function TexteAvecVersets({ texte, onVersetClick }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fenêtre popup verset — appelle bible-api.com (gratuit, Louis Segond + autres)
+// Fenêtre popup verset — texte biblique via getBible (voir src/lib/bible.js)
 // ─────────────────────────────────────────────────────────────────────────────
-const VERSIONS = [
-  { code: 'louis_segond', label: 'Louis Segond (1910)' },
-  { code: 'darby', label: 'Darby (FR)' },
-  { code: 'martin', label: 'Martin (1744)' },
-  { code: 'kjv', label: 'King James (EN)' },
-  { code: 'web', label: 'World English Bible' },
-]
-
-// Normalise la référence pour l'API : "Jean 3:16" → "Jean+3:16"
-function normaliserRef(ref) {
-  return ref.replace(/\s+/g, '+')
-}
-
 function PopupVerset({ reference, onFermer }) {
-  const [version, setVersion] = useState('louis_segond')
-  const [texte, setTexte] = useState('')
+  const [version, setVersion] = useState('ls1910')
+  const [resultat, setResultat] = useState(null)
   const [chargement, setChargement] = useState(false)
-  const [erreur, setErreur] = useState(false)
+  const [erreur, setErreur] = useState('')
 
   useEffect(() => {
-    setChargement(true)
-    setErreur(false)
-    setTexte('')
-    const ref = normaliserRef(reference)
-    fetch(`https://bible-api.com/${ref}?translation=${version}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) { setErreur(true); setChargement(false); return }
-        setTexte(data.text?.trim() ?? '')
+    let annule = false
+    setChargement(true); setErreur(''); setResultat(null)
+    chercherVerset(reference, version)
+      .then((r) => { if (!annule) { setResultat(r); setChargement(false) } })
+      .catch((e) => {
+        if (annule) return
+        setErreur(e.code === 'RESEAU'
+          ? "Impossible de joindre le service biblique. Vérifiez votre connexion et réessayez."
+          : e.code === 'ABSENT'
+            ? "Ce passage n'existe pas dans cette version. Vérifiez le chapitre et les versets."
+            : 'Référence non reconnue. Écrivez par exemple « Jean 3:16 », « 1 Corinthiens 13:4-7 » ou « Psaumes 23 ».')
         setChargement(false)
       })
-      .catch(() => { setErreur(true); setChargement(false) })
+    return () => { annule = true }
   }, [reference, version])
 
   return (
@@ -113,16 +103,15 @@ function PopupVerset({ reference, onFermer }) {
         </select>
 
         {chargement && <p className="note">Chargement…</p>}
-        {erreur && (
-          <p className="alerte">
-            Référence non trouvée dans cette version. Essayez un autre format
-            (ex. "Jean 3:16" plutôt que "Jn 3:16") ou une autre version.
-          </p>
-        )}
-        {texte && (
-          <p style={{ fontSize: '1.05rem', lineHeight: 1.7, fontStyle: 'italic', color: 'var(--texte)' }}>
-            « {texte} »
-          </p>
+        {erreur && <p className="alerte">{erreur}</p>}
+        {resultat && (
+          <div style={{ fontSize: '1.05rem', lineHeight: 1.7 }}>
+            {resultat.versets.map((v) => (
+              <p key={v.n} style={{ margin: '0 0 0.5rem' }}>
+                <sup style={{ color: 'var(--encre)', fontWeight: 700, marginRight: '0.35rem' }}>{v.n}</sup>{v.texte}
+              </p>
+            ))}
+          </div>
         )}
       </div>
     </div>
