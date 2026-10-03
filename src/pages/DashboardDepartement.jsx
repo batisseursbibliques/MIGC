@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
 import DashboardCommunication from './DashboardCommunication.jsx'
+import { MembresDepartement, TachesDepartement } from './GestionDepartement.jsx'
 
-export default function DashboardDepartement({ profil }) {
+export default function DashboardDepartement({ profil, page = 'comptes-rendus' }) {
   const { brancheId, departementId } = profil
 
   // Sécurité : si le profil est incomplet (pas de département assigné), on affiche un message clair.
@@ -15,7 +16,7 @@ export default function DashboardDepartement({ profil }) {
     )
   }
 
-  const [onglet, setOnglet] = useState('comptes-rendus')
+  const onglet = page
   const [contenu, setContenu] = useState('')
   const [comptesRendus, setComptesRendus] = useState([])
 
@@ -42,10 +43,9 @@ export default function DashboardDepartement({ profil }) {
     <div>
       <h1 className="titre-page">Mon département</h1>
 
-      <nav className="onglets">
-        <button className={onglet === 'comptes-rendus' ? 'onglet actif' : 'onglet'} onClick={() => setOnglet('comptes-rendus')}>Comptes-rendus</button>
-        <button className={onglet === 'communication' ? 'onglet actif' : 'onglet'} onClick={() => setOnglet('communication')}>Communication</button>
-      </nav>
+
+      {onglet === 'membres' && <MembresDepartement brancheId={brancheId} departementId={departementId} />}
+      {onglet === 'taches' && <TachesDepartement brancheId={brancheId} departementId={departementId} />}
 
       {onglet === 'comptes-rendus' && (
         <div className="grille-deux">

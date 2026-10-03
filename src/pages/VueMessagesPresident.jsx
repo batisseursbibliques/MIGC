@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { collection, onSnapshot, query, where, orderBy, getDocs } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
 import GestionMessages from './GestionMessages.jsx'
 
@@ -121,14 +121,27 @@ export default function VueMessagesPresident() {
 function MessagesPasteurResume({ pasteurUid, pasteurNom, onOuvrir }) {
   const [messages, setMessages] = useState([])
 
+  const [erreur, setErreur] = useState(false)
+
   useEffect(() => {
-    const q = query(
-      collection(db, 'utilisateurs', pasteurUid, 'messages'),
-      where('statut', 'in', ['pret', 'preche']),
-      orderBy('modifieLe', 'desc')
+    // Un seul tri, sans filtre Firestore : évite l'index composite qui faisait échouer la requête en silence.
+    // Le filtre « prêt / prêché » est fait ici.
+    const q = query(collection(db, 'utilisateurs', pasteurUid, 'messages'), orderBy('modifieLe', 'desc'))
+    return onSnapshot(
+      q,
+      (snap) => {
+        setErreur(false)
+        setMessages(
+          snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((m) => m.statut === 'pret' || m.statut === 'preche'),
+        )
+      },
+      () => setErreur(true),
     )
-    return onSnapshot(q, (snap) => setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() }))))
   }, [pasteurUid])
+
+  if (erreur) {
+    return <p className="alerte">Impossible de charger les messages de ce pasteur. Réessayez dans un instant.</p>
+  }
 
   if (messages.length === 0) {
     return <p className="note">Aucun message partagé pour le moment.</p>

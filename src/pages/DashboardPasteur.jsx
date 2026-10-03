@@ -16,6 +16,7 @@ import GestionMessages from './GestionMessages.jsx'
 import { BoutonAbsence } from './GestionAbsence.jsx'
 import BoutonPdf from '../components/BoutonPdf.jsx'
 import { exporterMembres, exporterPVs, exporterCourriers, exporterJournalCaisse } from '../lib/exports.js'
+import RappelsEquipe from './RappelsEquipe.jsx'
 const TYPES_MOUVEMENT = [
   { valeur: 'dime', label: 'Dîme' },
   { valeur: 'collecte', label: 'Collecte' },
@@ -63,6 +64,12 @@ export default function DashboardPasteur({ profil, lectureSeule = false, page = 
         />
       )}
       <h1 className="titre-page">{branche?.nom ?? 'Mon église locale'}</h1>
+
+      {onglet === 'supervision' && (
+        <SupervisionPasteur mouvements={mouvements} membres={membres} solde={solde} seuil={seuil} depasseSeuil={depasseSeuil} />
+      )}
+
+      {onglet === 'rappels' && <RappelsEquipe profil={profil} />}
 
       {onglet === 'caisse' && (
         <CaissePasteur
@@ -451,6 +458,38 @@ function LectureTresorerie({ brancheId, mouvements, solde, seuil, eglise }) {
           </ul>
         </section>
       </div>
+    </div>
+  )
+}
+
+
+// ── Vue d'ensemble du pasteur : il supervise, il ne saisit pas ──────────────
+function SupervisionPasteur({ mouvements, membres, solde, seuil, depasseSeuil }) {
+  const debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0, 0, 0, 0)
+  const duMois = mouvements.filter((m) => (m.date?.toDate ? m.date.toDate() : new Date(0)) >= debutMois)
+  const entrees = duMois.filter((m) => m.type !== 'depense').reduce((a, m) => a + m.montant, 0)
+  const sorties = duMois.filter((m) => m.type === 'depense').reduce((a, m) => a + m.montant, 0)
+  const f = (n) => `${n.toLocaleString('fr-FR')} FCFA`
+  const carte = (titre, valeur, note) => (
+    <div className="carte" style={{ flex: '1 1 10rem' }}>
+      <div className="note">{titre}</div>
+      <div style={{ fontFamily: 'Fraunces, serif', fontSize: '1.5rem', margin: '0.2rem 0' }}>{valeur}</div>
+      {note && <div className="note">{note}</div>}
+    </div>
+  )
+  return (
+    <div>
+      <h2 className="titre-carte">Vue d'ensemble</h2>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+        {carte('Solde de la caisse', f(solde), seuil != null ? `Seuil autorisé : ${f(seuil)}` : null)}
+        {carte('Membres enregistrés', membres.length)}
+        {carte('Entrées du mois', f(entrees))}
+        {carte('Dépenses du mois', f(sorties))}
+      </div>
+      {depasseSeuil && <p className="alerte" style={{ marginTop: '1rem' }}>Le solde dépasse le seuil autorisé : un virement vers le national est à prévoir.</p>}
+      <p className="note" style={{ marginTop: '1rem' }}>
+        Le détail est dans « Secrétariat » et « Trésorerie », en lecture seule. Pour demander quelque chose à un collaborateur, utilisez « Rappels à l'équipe ».
+      </p>
     </div>
   )
 }
