@@ -50,4 +50,15 @@ async function supprimer() {
   note('Suppression', fait.length ? fait : ['(rien à faire)'])
 }
 
-if (process.env.ACTION === 'supprimer') await supprimer(); else await inspecter()
+// ACTION=mere : désigne l'église mère (BRANCHE) et son pasteur principal (UIDS = UID de l'Archevêque)
+async function designerMere() {
+  const brancheId = process.env.BRANCHE; const uid = (process.env.UIDS ?? '').split(',')[0].trim()
+  const fiche = await db.collection('utilisateurs').doc(uid).get()
+  if (!fiche.exists || fiche.data().role !== 'national') { note('Église mère', ['REFUSÉ : l\'UID fourni n\'est pas celui du compte national']); return }
+  await db.collection('branches').doc(brancheId).set({ mere: true, direction: 'archeveque', pasteurUid: uid, pasteurNom: fiche.data().nom }, { merge: true })
+  note('Église mère', [`${brancheId} désignée église mère, dirigée par ${fiche.data().nom}`])
+}
+
+if (process.env.ACTION === 'supprimer') await supprimer()
+else if (process.env.ACTION === 'mere') await designerMere()
+else await inspecter()

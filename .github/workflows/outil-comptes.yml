@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "inspecter ou supprimer"
+        description: "inspecter, supprimer ou mere"
         default: inspecter
+      branche:
+        description: "ID de l'église (action mere)"
+        default: ''
       uids:
         description: "UID à supprimer (séparés par des virgules)"
         default: ''
@@ -27,4 +30,5 @@ jobs:
           FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           ACTION: ${{ inputs.action }}
           UIDS: ${{ inputs.uids }}
+          BRANCHE: ${{ inputs.branche }}
         run: node scripts/outil-comptes.mjs
