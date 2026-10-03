@@ -1,0 +1,30 @@
+name: Outil comptes (administration)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "inspecter ou supprimer"
+        default: inspecter
+      uids:
+        description: "UID à supprimer (séparés par des virgules)"
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  outil:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install firebase-admin --no-save
+      - name: Exécuter
+        env:
+          FIREBASE_SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          ACTION: ${{ inputs.action }}
+          UIDS: ${{ inputs.uids }}
+        run: node scripts/outil-comptes.mjs
