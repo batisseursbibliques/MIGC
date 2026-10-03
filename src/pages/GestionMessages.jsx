@@ -1,4 +1,6 @@
 import { chercherVerset, VERSIONS } from '../lib/bible.js'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterMessage } from '../lib/exports.js'
 import React, { useEffect, useState, useRef } from 'react'
 import {
   collection, addDoc, onSnapshot, orderBy, query, doc,
@@ -182,6 +184,7 @@ export default function GestionMessages({ pasteurUid, pasteurNom, lectureSeule =
         <DetailMessage
           message={msg}
           pasteurUid={pasteurUid}
+          pasteurNom={pasteurNom}
           lectureSeule={lectureSeule}
           onRetour={() => { setVue('liste'); setMessageActif(null) }}
           onEditer={() => setVue('editer')}
@@ -227,6 +230,7 @@ export default function GestionMessages({ pasteurUid, pasteurNom, lectureSeule =
               {m.versetPrincipal && (
                 <p className="note" style={{ margin: '0.2rem 0 0', fontStyle: 'italic' }}>📖 {m.versetPrincipal}</p>
               )}
+              <div style={{ marginTop: '0.6rem' }}><BoutonPdf petit onExport={() => exporterMessage(m, { auteur: pasteurNom })} /></div>
             </div>
           )
         })}
@@ -239,7 +243,7 @@ export default function GestionMessages({ pasteurUid, pasteurNom, lectureSeule =
 // ─────────────────────────────────────────────────────────────────────────────
 // Détail d'un message
 // ─────────────────────────────────────────────────────────────────────────────
-function DetailMessage({ message: m, pasteurUid, lectureSeule, onRetour, onEditer, onVersetClick, STATUTS }) {
+function DetailMessage({ message: m, pasteurUid, pasteurNom, lectureSeule, onRetour, onEditer, onVersetClick, STATUTS }) {
   async function changerStatut(statut) {
     await updateDoc(doc(db, 'utilisateurs', pasteurUid, 'messages', m.id), {
       statut, modifieLe: serverTimestamp(),
@@ -263,6 +267,7 @@ function DetailMessage({ message: m, pasteurUid, lectureSeule, onRetour, onEdite
           <h2 className="titre-carte" style={{ marginBottom: 0 }}>{m.titre || '(Sans titre)'}</h2>
           <span className="etiquette" style={{ color: s.couleur, borderColor: s.couleur }}>{s.label}</span>
         </div>
+        <div style={{ marginBottom: '1rem' }}><BoutonPdf onExport={() => exporterMessage(m, { auteur: pasteurNom })} /></div>
 
         {m.theme && <p style={{ color: 'var(--texte-doux)', margin: '0 0 0.5rem' }}>Thème : <strong>{m.theme}</strong></p>}
         {m.versetPrincipal && (

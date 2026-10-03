@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { collection, addDoc, onSnapshot, orderBy, query, serverTimestamp, collectionGroup } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterMembres, exporterPVs, exporterUnPV, exporterCourriers } from '../lib/exports.js'
 
 export default function DashboardSecretaireGeneral({ profil , page = 'membres'}) {
   const { uid } = profil
@@ -19,6 +21,8 @@ export default function DashboardSecretaireGeneral({ profil , page = 'membres'})
 
 function VueMembresNational() {
   const [membres, setMembres] = useState([])
+  const [branches, setBranches] = useState([])
+  useEffect(() => onSnapshot(collection(db, 'branches'), (snap) => setBranches(snap.docs.map((d) => ({ id: d.id, ...d.data() })))), [])
   useEffect(() => onSnapshot(collectionGroup(db, 'membres'), (snap) => (
     setMembres(snap.docs.map((d) => ({ id: d.id, brancheId: d.ref.parent.parent.id, ...d.data() })))
   )), [])
@@ -43,7 +47,7 @@ function VueMembresNational() {
         </ul>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Liste complète</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Liste complète</h2><BoutonPdf onExport={() => exporterMembres(membres, { brancheDe: (m) => branches.find((b) => b.id === m.brancheId)?.nom ?? '—' })} disabled={membres.length === 0} /></div>
         <ul className="liste">
           {membres.map((m) => (
             <li key={m.id} className="ligne-liste">
@@ -88,12 +92,13 @@ function PVNational({ uid }) {
         </form>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">PV du BEN ({pvs.length})</h2>
+        <div className="barre-titre"><h2 className="titre-carte">PV du BEN ({pvs.length})</h2><BoutonPdf label="Exporter le registre" onExport={() => exporterPVs(pvs, { titre: 'Registre des procès-verbaux du BEN' })} disabled={pvs.length === 0} /></div>
         <ul className="liste">
           {pvs.map((p) => (
             <li key={p.id} className="ligne-liste-verticale">
               <strong>{p.date ? new Date(p.date + 'T00:00').toLocaleDateString('fr-FR') : '—'}</strong> — {p.objet}
               {p.contenu && <p className="note" style={{ marginTop: '0.25rem' }}>{p.contenu.slice(0, 120)}{p.contenu.length > 120 ? '…' : ''}</p>}
+              <div style={{ marginTop: '0.4rem' }}><BoutonPdf petit label="Ce PV en PDF" onExport={() => exporterUnPV(p, { eglise: 'Bureau Exécutif National' })} /></div>
             </li>
           ))}
           {pvs.length === 0 && <p className="note">Aucun PV national enregistré.</p>}
@@ -138,7 +143,7 @@ function CourrierNational({ uid }) {
         </form>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Registre ({courriers.length})</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Registre ({courriers.length})</h2><BoutonPdf onExport={() => exporterCourriers(courriers, { titre: 'Registre du courrier du BEN' })} disabled={courriers.length === 0} /></div>
         <ul className="liste">
           {courriers.map((c) => (
             <li key={c.id} className="ligne-liste">
@@ -172,7 +177,7 @@ function RapportsPVBranches() {
 
   return (
     <section className="carte">
-      <h2 className="titre-carte">Procès-verbaux de toutes les églises locales</h2>
+      <div className="barre-titre"><h2 className="titre-carte">Procès-verbaux de toutes les églises locales</h2><BoutonPdf label="Exporter en PDF" onExport={() => exporterPVs(pvs, { titre: 'Procès-verbaux des églises locales', brancheDe: (p) => branches.find((b) => b.id === p.brancheId)?.nom ?? '—' })} disabled={pvs.length === 0} /></div>
       <ul className="liste">
         {pvs.map((p) => {
           const branche = branches.find((b) => b.id === p.brancheId)

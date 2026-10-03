@@ -374,3 +374,10 @@ h1, h2, h3 {
 .titre-page { font-size: 1.5rem; margin-bottom: 1.25rem; }
 
 /* On enlève l'ancien style onglets horizontal pour le remplacer par sous-menu interne */
+
+/* Bouton d'export PDF */
+.bouton-pdf { display:inline-flex; align-items:center; gap:.4rem; background:#fff; color:var(--encre); border:1.5px solid var(--encre); border-radius:8px; padding:.5rem .9rem; font:inherit; font-size:.88rem; font-weight:600; cursor:pointer; }
+.bouton-pdf:hover { background:var(--encre); color:#fff; }
+.bouton-pdf:disabled { opacity:.6; cursor:default; }
+.barre-titre { display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin-bottom:1rem; }
+.barre-titre .titre-carte { margin:0; }

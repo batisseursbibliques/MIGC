@@ -11,6 +11,8 @@ const TYPES_MOUVEMENT = [
 
 import GestionProjets from './GestionProjets.jsx'
 import { BoutonAbsence } from './GestionAbsence.jsx'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterJournalCaisse } from '../lib/exports.js'
 
 export default function DashboardTresorierBranche({ profil, lectureSeule = false , page = 'caisse'}) {
   const { brancheId, uid } = profil
@@ -77,7 +79,7 @@ export default function DashboardTresorierBranche({ profil, lectureSeule = false
           </section>
 
           <section className="carte">
-            <h2 className="titre-carte">Historique des mouvements</h2>
+            <div className="barre-titre"><h2 className="titre-carte">Historique des mouvements</h2><BoutonPdf label="Journal de caisse en PDF" onExport={() => exporterJournalCaisse(mouvements, { eglise: branche?.nom })} disabled={mouvements.length === 0} /></div>
             <ul className="liste">
               {mouvements.map((m) => (
                 <li key={m.id} className="ligne-liste">
@@ -97,7 +99,7 @@ export default function DashboardTresorierBranche({ profil, lectureSeule = false
       {onglet === 'rapport' && (
         <div className="grille-deux">
           <section className="carte">
-            <h2 className="titre-carte">Résumé financier</h2>
+            <div className="barre-titre"><h2 className="titre-carte">Résumé financier</h2><BoutonPdf label="Journal de caisse en PDF" onExport={() => exporterJournalCaisse(mouvements, { eglise: branche?.nom })} disabled={mouvements.length === 0} /></div>
             <ul className="liste">
               {TYPES_MOUVEMENT.map(({ valeur, label }) => {
                 const total = mouvements.filter((m) => m.type === valeur).reduce((s, m) => s + m.montant, 0)

@@ -4,6 +4,8 @@ import { db } from '../lib/firebase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 import GestionProjets from './GestionProjets.jsx'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterJournalCaisse, exporterVirements } from '../lib/exports.js'
 
 const TYPES_MOUVEMENT = [
   { valeur: 'dime', label: 'Dîme' },
@@ -79,7 +81,7 @@ function GestionVirements({ uid }) {
         </ul>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Total reçu et validé</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Total reçu et validé</h2><BoutonPdf label="Registre des reversements" onExport={() => exporterVirements([...virementsDeclares, ...virementsValides], { titre: 'Registre des reversements reçus au BEN', brancheDe: (v) => nomBranche(v.brancheId) })} disabled={virementsDeclares.length + virementsValides.length === 0} /></div>
         <p className="grand-nombre">{totalRecu.toLocaleString('fr-FR')} FCFA</p>
         <p className="note">{virementsValides.length} virement(s) validé(s)</p>
         <ul className="liste" style={{ marginTop: '1rem' }}>
@@ -115,7 +117,7 @@ function ConsolidationFinanciere() {
   return (
     <div className="grille-deux">
       <section className="carte">
-        <h2 className="titre-carte">Consolidation (toutes branches)</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Consolidation (toutes branches)</h2><BoutonPdf label="Journal consolidé en PDF" onExport={() => exporterJournalCaisse(mouvements, { titre: 'Journal de caisse consolidé (toutes les églises)', brancheDe: (m) => branches.find((b) => b.id === m.brancheId)?.nom ?? '—' })} disabled={mouvements.length === 0} /></div>
         <ul className="liste">
           {TYPES_MOUVEMENT.map(({ valeur, label }) => (
             <li key={valeur} className="ligne-liste">
@@ -188,7 +190,7 @@ function CaissesBranches() {
           <p className="note">{mouvements.length} mouvement(s)</p>
         </section>
         <section className="carte">
-          <h2 className="titre-carte">Derniers mouvements</h2>
+          <div className="barre-titre"><h2 className="titre-carte">Derniers mouvements</h2><BoutonPdf label="Journal complet en PDF" onExport={() => exporterJournalCaisse(mouvements, { eglise: branches.find((b) => b.id === brancheSelectionnee)?.nom })} disabled={mouvements.length === 0} /></div>
           <ul className="liste">
             {mouvements.slice(0, 15).map((m) => (
               <li key={m.id} className="ligne-liste">

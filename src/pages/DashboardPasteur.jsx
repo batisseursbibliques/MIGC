@@ -14,6 +14,8 @@ import DashboardApparence from './DashboardApparence.jsx'
 import GestionProjets from './GestionProjets.jsx'
 import GestionMessages from './GestionMessages.jsx'
 import { BoutonAbsence } from './GestionAbsence.jsx'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterMembres, exporterPVs, exporterCourriers, exporterJournalCaisse } from '../lib/exports.js'
 const TYPES_MOUVEMENT = [
   { valeur: 'dime', label: 'Dîme' },
   { valeur: 'collecte', label: 'Collecte' },
@@ -64,6 +66,7 @@ export default function DashboardPasteur({ profil, lectureSeule = false, page = 
 
       {onglet === 'caisse' && (
         <CaissePasteur
+          eglise={branche?.nom}
           brancheId={brancheId}
           mouvements={mouvements}
           solde={solde}
@@ -74,7 +77,7 @@ export default function DashboardPasteur({ profil, lectureSeule = false, page = 
       )}
 
       {onglet === 'membres' && (
-        <MembresPasteur brancheId={brancheId} membres={membres} uid={profil.uid} />
+        <MembresPasteur brancheId={brancheId} membres={membres} uid={profil.uid} eglise={branche?.nom} />
       )}
 
       {onglet === 'cultes' && (
@@ -98,11 +101,11 @@ export default function DashboardPasteur({ profil, lectureSeule = false, page = 
       )}
 
       {onglet === 'secretariat' && (
-        <LectureSecretariat brancheId={brancheId} />
+        <LectureSecretariat brancheId={brancheId} eglise={branche?.nom} />
       )}
 
       {onglet === 'tresorerie' && (
-        <LectureTresorerie brancheId={brancheId} mouvements={mouvements} solde={solde} seuil={seuil} />
+        <LectureTresorerie brancheId={brancheId} mouvements={mouvements} solde={solde} seuil={seuil} eglise={branche?.nom} />
       )}
 
       {onglet === 'projets' && (
@@ -124,7 +127,7 @@ export default function DashboardPasteur({ profil, lectureSeule = false, page = 
   )
 }
 
-function CaissePasteur({ brancheId, mouvements, solde, seuil, depasseSeuil, uid }) {
+function CaissePasteur({ brancheId, mouvements, solde, seuil, depasseSeuil, uid, eglise }) {
   const [type, setType] = useState('dime')
   const [montant, setMontant] = useState('')
   const [description, setDescription] = useState('')
@@ -228,7 +231,7 @@ function CaissePasteur({ brancheId, mouvements, solde, seuil, depasseSeuil, uid 
       </section>
 
       <section className="carte">
-        <h2 className="titre-carte">Historique des mouvements</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Historique des mouvements</h2><BoutonPdf label="Journal de caisse en PDF" onExport={() => exporterJournalCaisse(mouvements, { eglise })} disabled={mouvements.length === 0} /></div>
         <ul className="liste">
           {mouvements.map((m) => (
             <li key={m.id} className="ligne-liste">
@@ -246,7 +249,7 @@ function CaissePasteur({ brancheId, mouvements, solde, seuil, depasseSeuil, uid 
   )
 }
 
-function MembresPasteur({ brancheId, membres, uid }) {
+function MembresPasteur({ brancheId, membres, uid, eglise }) {
   const [nom, setNom] = useState('')
   const [prenom, setPrenom] = useState('')
   const [statut, setStatut] = useState('nouveau')
@@ -280,7 +283,7 @@ function MembresPasteur({ brancheId, membres, uid }) {
           <button type="submit" className="bouton-principal">Ajouter</button>
         </form>
 
-        <h2 className="titre-carte" style={{ marginTop: '2rem' }}>Registre des membres ({membres.length})</h2>
+        <div className="barre-titre" style={{ marginTop: '2rem' }}><div className="barre-titre"><h2 className="titre-carte">Registre des membres ({membres.length})</h2><BoutonPdf onExport={() => exporterMembres(membres, { eglise })} disabled={membres.length === 0} /></div><BoutonPdf onExport={() => exporterMembres(membres, { eglise })} disabled={membres.length === 0} /></div>
         <ul className="liste">
           {membres.map((m) => (
             <li key={m.id} className="ligne-liste" style={{ cursor: 'pointer' }} onClick={() => setMembreSelectionne(m.id)}>
@@ -309,7 +312,7 @@ function MembresPasteur({ brancheId, membres, uid }) {
 }
 
 // ── Vue lecture seule : travail du secrétaire de branche ─────────────────────
-function LectureSecretariat({ brancheId }) {
+function LectureSecretariat({ brancheId, eglise }) {
   const [onglet, setOnglet] = useState('membres')
   const [membres, setMembres] = useState([])
   const [pvs, setPvs] = useState([])
@@ -343,7 +346,7 @@ function LectureSecretariat({ brancheId }) {
 
       {onglet === 'membres' && (
         <section className="carte">
-          <h2 className="titre-carte">Registre des membres ({membres.length})</h2>
+          <div className="barre-titre"><h2 className="titre-carte">Registre des membres ({membres.length})</h2><BoutonPdf onExport={() => exporterMembres(membres, { eglise })} disabled={membres.length === 0} /></div>
           <ul className="liste">
             {membres.map((m) => (
               <li key={m.id} className="ligne-liste">
@@ -359,7 +362,7 @@ function LectureSecretariat({ brancheId }) {
 
       {onglet === 'pv' && (
         <section className="carte">
-          <h2 className="titre-carte">Procès-verbaux ({pvs.length})</h2>
+          <div className="barre-titre"><h2 className="titre-carte">Procès-verbaux ({pvs.length})</h2><BoutonPdf label="Exporter le registre" onExport={() => exporterPVs(pvs, { eglise })} disabled={pvs.length === 0} /></div>
           <ul className="liste">
             {pvs.map((p) => (
               <li key={p.id} className="ligne-liste-verticale">
@@ -374,7 +377,7 @@ function LectureSecretariat({ brancheId }) {
 
       {onglet === 'courrier' && (
         <section className="carte">
-          <h2 className="titre-carte">Registre des courriers ({courriers.length})</h2>
+          <div className="barre-titre"><h2 className="titre-carte">Registre des courriers ({courriers.length})</h2><BoutonPdf onExport={() => exporterCourriers(courriers, { eglise })} disabled={courriers.length === 0} /></div>
           <ul className="liste">
             {courriers.map((c) => (
               <li key={c.id} className="ligne-liste">
@@ -393,7 +396,7 @@ function LectureSecretariat({ brancheId }) {
 }
 
 // ── Vue lecture seule : travail du trésorier de branche ──────────────────────
-function LectureTresorerie({ brancheId, mouvements, solde, seuil }) {
+function LectureTresorerie({ brancheId, mouvements, solde, seuil, eglise }) {
   const depasseSeuil = seuil != null && solde > seuil
   const TYPES = [
     { valeur: 'dime', label: 'Dîme' },
@@ -433,7 +436,7 @@ function LectureTresorerie({ brancheId, mouvements, solde, seuil }) {
           </ul>
         </section>
         <section className="carte">
-          <h2 className="titre-carte">Derniers mouvements</h2>
+          <div className="barre-titre"><h2 className="titre-carte">Derniers mouvements</h2><BoutonPdf label="Journal complet en PDF" onExport={() => exporterJournalCaisse(mouvements, { eglise })} disabled={mouvements.length === 0} /></div>
           <ul className="liste">
             {mouvements.slice(0, 20).map((m) => (
               <li key={m.id} className="ligne-liste">

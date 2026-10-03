@@ -207,6 +207,21 @@ service cloud.firestore {
       }
     }
 
+    // ── Lectures transversales (toutes les églises) pour les rôles nationaux ──
+    // Indispensables aux vues « toutes branches » : membres, PV, caisses et reversements.
+    match /{path=**}/membres/{id} {
+      allow read: if estNational() || estSecretaireGeneral();
+    }
+    match /{path=**}/pv/{id} {
+      allow read: if estNational() || estSecretaireGeneral();
+    }
+    match /{path=**}/caisse/{id} {
+      allow read: if estNational() || estTresorierGeneral() || estCommissaire();
+    }
+    match /{path=**}/virements/{id} {
+      allow read: if estNational() || estTresorierGeneral() || estCommissaire() || estAdmin();
+    }
+
     // ── Collections nationales ────────────────────────────────────────────────
     match /pvNationaux/{pvId} {
       allow read: if estBureauNational();

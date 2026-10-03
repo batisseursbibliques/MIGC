@@ -3,6 +3,8 @@ import { collection, addDoc, onSnapshot, orderBy, query, serverTimestamp, doc, g
 import { db } from '../lib/firebase.js'
 
 import { BoutonAbsence } from './GestionAbsence.jsx'
+import BoutonPdf from '../components/BoutonPdf.jsx'
+import { exporterMembres, exporterPVs, exporterUnPV, exporterCourriers } from '../lib/exports.js'
 
 export default function DashboardSecretaireBranche({ profil, lectureSeule = false , page = 'membres'}) {
   const { brancheId, uid } = profil
@@ -23,14 +25,14 @@ export default function DashboardSecretaireBranche({ profil, lectureSeule = fals
         />
       )}
       <h1 className="titre-page">{branche?.nom ?? 'Mon église locale'} — Secrétariat</h1>
-      {onglet === 'membres' && <GestionMembres brancheId={brancheId} uid={uid} />}
-      {onglet === 'pv' && <GestionPV brancheId={brancheId} uid={uid} />}
-      {onglet === 'courrier' && <GestionCourrier brancheId={brancheId} uid={uid} />}
+      {onglet === 'membres' && <GestionMembres brancheId={brancheId} uid={uid} eglise={branche?.nom} />}
+      {onglet === 'pv' && <GestionPV brancheId={brancheId} uid={uid} eglise={branche?.nom} />}
+      {onglet === 'courrier' && <GestionCourrier brancheId={brancheId} uid={uid} eglise={branche?.nom} />}
     </div>
   )
 }
 
-function GestionMembres({ brancheId, uid }) {
+function GestionMembres({ brancheId, uid, eglise }) {
   const [membres, setMembres] = useState([])
   const [nom, setNom] = useState('')
   const [prenom, setPrenom] = useState('')
@@ -68,7 +70,7 @@ function GestionMembres({ brancheId, uid }) {
         </form>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Registre ({membres.length} membres)</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Registre ({membres.length} membres)</h2><BoutonPdf onExport={() => exporterMembres(membres, { eglise })} disabled={membres.length === 0} /></div>
         <ul className="liste">
           {membres.map((m) => (
             <li key={m.id} className="ligne-liste">
@@ -84,7 +86,7 @@ function GestionMembres({ brancheId, uid }) {
   )
 }
 
-function GestionPV({ brancheId, uid }) {
+function GestionPV({ brancheId, uid, eglise }) {
   const [pvs, setPvs] = useState([])
   const [date, setDate] = useState('')
   const [objet, setObjet] = useState('')
@@ -116,12 +118,13 @@ function GestionPV({ brancheId, uid }) {
         </form>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Procès-verbaux ({pvs.length})</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Procès-verbaux ({pvs.length})</h2><BoutonPdf label="Exporter le registre" onExport={() => exporterPVs(pvs, { eglise })} disabled={pvs.length === 0} /></div>
         <ul className="liste">
           {pvs.map((p) => (
             <li key={p.id} className="ligne-liste-verticale">
               <strong>{p.date ? new Date(p.date + 'T00:00').toLocaleDateString('fr-FR') : '—'}</strong> — {p.objet}
               {p.contenu && <p className="note" style={{ marginTop: '0.25rem' }}>{p.contenu.slice(0, 120)}{p.contenu.length > 120 ? '…' : ''}</p>}
+              <div style={{ marginTop: '0.4rem' }}><BoutonPdf petit label="Ce PV en PDF" onExport={() => exporterUnPV(p, { eglise })} /></div>
             </li>
           ))}
           {pvs.length === 0 && <p className="note">Aucun procès-verbal enregistré.</p>}
@@ -131,7 +134,7 @@ function GestionPV({ brancheId, uid }) {
   )
 }
 
-function GestionCourrier({ brancheId, uid }) {
+function GestionCourrier({ brancheId, uid, eglise }) {
   const [courriers, setCourriers] = useState([])
   const [date, setDate] = useState('')
   const [sens, setSens] = useState('entrant')
@@ -168,7 +171,7 @@ function GestionCourrier({ brancheId, uid }) {
         </form>
       </section>
       <section className="carte">
-        <h2 className="titre-carte">Registre des courriers ({courriers.length})</h2>
+        <div className="barre-titre"><h2 className="titre-carte">Registre des courriers ({courriers.length})</h2><BoutonPdf onExport={() => exporterCourriers(courriers, { eglise })} disabled={courriers.length === 0} /></div>
         <ul className="liste">
           {courriers.map((c) => (
             <li key={c.id} className="ligne-liste">
