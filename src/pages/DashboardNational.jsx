@@ -17,7 +17,7 @@ import DashboardPasteur from './DashboardPasteur.jsx'
 
 export default function DashboardNational({ page = 'vue', deconnexion, onNaviguer = () => {}, mere = null }) {
   const { user, profil } = useAuth()
-  const onglet = page
+  const onglet = page ?? 'vue' // la page vaut null au tout premier affichage
   const [branches, setBranches] = useState([])
   const [virements, setVirements] = useState([])
 
