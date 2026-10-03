@@ -2,41 +2,29 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase.js'
 import { LOGO_MIGC } from '../assets/logo-migc.js'
-import './tableau-bord.css'
+import { fcfa, court, sixMois, salutation, moisCourant, dateMvt, dateCourte, MOIS } from './AccueilComposants.jsx'
+import './presidence.css'
 
-const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
-const STATUTS = [
-  ['nouveau', 'Nouveaux', 'var(--tb-ciel)'],
-  ['regulier', 'Réguliers', 'var(--tb-bleu)'],
-  ['membre_officiel', 'Membres officiels', 'var(--tb-nuit)'],
-  ['parti', 'Partis', 'var(--tb-gris)'],
-]
-const fcfa = (n) => `${Math.round(n).toLocaleString('fr-FR')} FCFA`
-const court = (n) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} M` : Math.abs(n) >= 1e3 ? `${Math.round(n / 1e3)} k` : String(Math.round(n)))
-const dateMouvement = (m) => (m.date?.toDate ? m.date.toDate() : m.date ? new Date(m.date) : null)
+const STATUTS = [['nouveau', 'Nouveaux', '#9FB0F2'], ['regulier', 'Réguliers', '#4A5FD0'], ['membre_officiel', 'Membres officiels', '#1A2478'], ['parti', 'Partis', '#C3C8DA']]
+const NATURE = { dime: 'Dîme', collecte: 'Collecte', don: 'Don', depense: 'Dépense' }
 
-function salutation() {
-  const h = new Date().getHours()
-  return h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir'
-}
-
-// Charge, église par église, les membres, la caisse et les virements à valider
+// Charge, église par église : membres, caisse et reversements
 function useDonneesEglises(branches) {
-  const [d, setD] = useState({ pret: false, membres: {}, mouvements: {}, virements: [] })
+  const [d, setD] = useState({ pret: false, membres: {}, mouvements: {}, virements: {} })
   const cle = branches.map((b) => b.id).join(',')
   useEffect(() => {
     let annule = false
     async function charger() {
-      const membres = {}, mouvements = {}, virements = []
+      const membres = {}, mouvements = {}, virements = {}
       await Promise.all(branches.map(async (b) => {
         const [m, c, v] = await Promise.allSettled([
           getDocs(collection(db, 'branches', b.id, 'membres')),
           getDocs(collection(db, 'branches', b.id, 'caisse')),
-          getDocs(query(collection(db, 'branches', b.id, 'virements'), where('statut', '==', 'declare'))),
+          getDocs(collection(db, 'branches', b.id, 'virements')),
         ])
         membres[b.id] = m.status === 'fulfilled' ? m.value.docs.map((x) => x.data()) : []
         mouvements[b.id] = c.status === 'fulfilled' ? c.value.docs.map((x) => x.data()) : []
-        if (v.status === 'fulfilled') v.value.docs.forEach((x) => virements.push({ id: x.id, brancheId: b.id, ...x.data() }))
+        virements[b.id] = v.status === 'fulfilled' ? v.value.docs.map((x) => ({ id: x.id, brancheId: b.id, ...x.data() })) : []
       }))
       if (!annule) setD({ pret: true, membres, mouvements, virements })
     }
@@ -52,136 +40,147 @@ function useCompte(nom) {
   return n
 }
 
-export default function TableauDeBordNational({ profil, branches, virements: virementsProp, onNaviguer, onValider }) {
+const aRejoint = (m, mois) => { const v = m.dateAdhesion; const s = v?.toDate ? v.toDate().toISOString().slice(0, 7) : String(v ?? '').slice(0, 7); return s === mois }
+
+export default function TableauDeBordNational({ profil, branches, onNaviguer, onValider }) {
   const donnees = useDonneesEglises(branches)
   const prieres = useCompte('demandesPriere')
   const contacts = useCompte('messagesContact')
   const [valides, setValides] = useState([])
-  const virements = (virementsProp ?? donnees.virements).filter((v) => !valides.includes(v.id))
+  const mc = moisCourant()
 
-  const stats = useMemo(() => {
+  const s = useMemo(() => {
     const membres = Object.values(donnees.membres).flat()
-    const parStatut = Object.fromEntries(STATUTS.map(([k]) => [k, membres.filter((m) => m.statut === k).length]))
-    const actifs = membres.length - parStatut.parti
-    const maintenant = new Date()
-    const mois = Array.from({ length: 6 }, (_, i) => {
-      const dt = new Date(maintenant.getFullYear(), maintenant.getMonth() - (5 - i), 1)
-      return { cle: `${dt.getFullYear()}-${dt.getMonth()}`, label: MOIS[dt.getMonth()], entrees: 0, sorties: 0 }
-    })
+    const mouvements = branches.flatMap((b) => (donnees.mouvements[b.id] ?? []).map((m) => ({ ...m, eglise: b.nom })))
+    const mois = sixMois(mouvements)
+    const [prec, cur] = [mois[4], mois[5]]
+    const delta = prec.entrees > 0 ? Math.round(((cur.entrees - prec.entrees) / prec.entrees) * 100) : null
+    const parStatut = STATUTS.map(([k, label, couleur]) => ({ label, couleur, n: membres.filter((m) => m.statut === k).length }))
     const parEglise = branches.map((b) => {
       const mv = donnees.mouvements[b.id] ?? []
       const solde = mv.reduce((a, m) => (m.type === 'depense' ? a - m.montant : a + m.montant), 0)
-      mv.forEach((m) => {
-        const dt = dateMouvement(m); if (!dt) return
-        const ligne = mois.find((x) => x.cle === `${dt.getFullYear()}-${dt.getMonth()}`)
-        if (ligne) m.type === 'depense' ? (ligne.sorties += m.montant) : (ligne.entrees += m.montant)
-      })
-      return { ...b, solde, nbMembres: (donnees.membres[b.id] ?? []).filter((m) => m.statut !== 'parti').length }
-    })
-    return { total: membres.length, actifs, parStatut, mois, parEglise, solde: parEglise.reduce((a, e) => a + e.solde, 0) }
-  }, [donnees, branches])
+      const entreesMois = mois.length ? mv.filter((m) => { const d = dateMvt(m); return d && `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === mc && m.type !== 'depense' }).reduce((a, m) => a + m.montant, 0) : 0
+      const vir = (donnees.virements[b.id] ?? []).find((v) => v.mois === mc)
+      const du = Math.round(entreesMois * 0.25)
+      const etat = vir ? (vir.statut === 'valide' ? 'valide' : 'declare') : du > 0 ? 'adeclarer' : 'rien'
+      return { ...b, solde, du, etat, nb: (donnees.membres[b.id] ?? []).filter((m) => m.statut !== 'parti').length }
+    }).sort((a, b) => (b.mere ? 1 : 0) - (a.mere ? 1 : 0))
+    const attente = Object.values(donnees.virements).flat().filter((v) => v.statut === 'declare' && !valides.includes(v.id))
+    const recents = [...mouvements].filter((m) => dateMvt(m)).sort((a, b) => dateMvt(b) - dateMvt(a)).slice(0, 6)
+    return { total: membres.length, actifs: membres.length - parStatut[3].n, nouveaux: membres.filter((m) => aRejoint(m, mc)).length, parStatut, mois, cur, delta, parEglise, attente, recents, solde: parEglise.reduce((a, e) => a + e.solde, 0) }
+  }, [donnees, branches, valides, mc])
 
-  const aTraiter = virements.length + prieres + contacts
-  const maxMois = Math.max(1, ...stats.mois.flatMap((m) => [m.entrees, m.sorties]))
-  const aujourdhui = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const nomEglise = (id) => branches.find((b) => b.id === id)?.nom ?? 'Église'
+  const aTraiter = s.attente.length + prieres + contacts
+  const mere = branches.find((b) => b.mere)
+  const max = Math.max(1, ...s.mois.flatMap((m) => [m.entrees, m.sorties]))
+  const date = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const pret = donnees.pret
 
   return (
-    <div className="tb">
-      <header className="tb-accueil">
-        <img src={LOGO_MIGC} alt="" className="tb-sceau" />
-        <p className="tb-date">{aujourdhui}</p>
-        <h1>{salutation()}, {profil?.role === 'national' ? 'Archevêque' : (profil?.nom ?? '')}.</h1>
-        <p className="tb-devise">Manifester la gloire de Christ à toutes les nations.</p>
+    <div className="pr">
+      <header className="pr-hero">
+        <img src={LOGO_MIGC} alt="" className="pr-sceau" />
+        <p className="pr-date">{date}</p>
+        <h1>{salutation()}, Archevêque.</h1>
+        <p className="pr-devise">Manifester la gloire de Christ à toutes les nations.</p>
+        <div className="pr-verre" role="group" aria-label="Chiffres clés de la Mission">
+          <button onClick={() => onNaviguer('branches')}><b>{branches.length}</b><span>{branches.length > 1 ? 'églises' : 'église'}</span></button>
+          <button onClick={() => onNaviguer('branches')}><b>{pret ? s.actifs : '…'}</b><span>membres actifs</span>{pret && s.nouveaux > 0 && <em>+{s.nouveaux} ce mois</em>}</button>
+          <button onClick={() => onNaviguer('rapports')} className="pr-large"><b>{pret ? fcfa(s.solde) : '…'}</b><span>solde cumulé des caisses</span></button>
+          <button onClick={() => onNaviguer('rapports')}><b>{pret ? court(s.cur.entrees) : '…'}</b><span>entrées du mois</span>{s.delta != null && <em className={s.delta >= 0 ? 'pr-hausse' : 'pr-baisse'}>{s.delta >= 0 ? '▲' : '▼'} {Math.abs(s.delta)} %</em>}</button>
+        </div>
       </header>
 
-      <section className="tb-chiffres" aria-label="Chiffres clés">
-        <button onClick={() => onNaviguer('branches')} className="tb-chiffre">
-          <span className="tb-n">{branches.length}</span><span className="tb-l">{branches.length > 1 ? 'Églises locales' : 'Église locale'}</span>
-        </button>
-        <button onClick={() => onNaviguer('branches')} className="tb-chiffre">
-          <span className="tb-n">{donnees.pret ? stats.actifs : '…'}</span><span className="tb-l">Membres actifs</span>
-        </button>
-        <button onClick={() => onNaviguer('rapports')} className="tb-chiffre tb-large">
-          <span className="tb-n">{donnees.pret ? fcfa(stats.solde) : '…'}</span><span className="tb-l">Solde cumulé des caisses</span>
-        </button>
-        <button onClick={() => onNaviguer('branches')} className={`tb-chiffre${virements.length ? ' tb-alerte' : ''}`}>
-          <span className="tb-n">{virements.length}</span><span className="tb-l">{virements.length > 1 ? 'Reversements à valider' : 'Reversement à valider'}</span>
-        </button>
+      <section className={`pr-action ${aTraiter ? 'pr-action-oui' : 'pr-action-non'}`}>
+        <h2>{aTraiter ? <>À traiter <span className="pr-pastille">{aTraiter}</span></> : 'Tout est à jour'}</h2>
+        {aTraiter === 0 && <p>Aucun reversement ni message en attente. Que la grâce du Seigneur vous accompagne aujourd'hui.</p>}
+        {s.attente.map((v) => (
+          <div key={v.id} className="pr-ligne">
+            <div><strong>{nomEglise(v.brancheId)}</strong><small>Reversement de {fcfa(v.montant)}{v.reference ? ` · réf. ${v.reference}` : ''}</small></div>
+            <button className="pr-valider" onClick={() => (onValider ? onValider(v) : Promise.resolve()).then(() => setValides((x) => [...x, v.id]))}>Valider</button>
+          </div>
+        ))}
+        {prieres > 0 && <button className="pr-ligne pr-lien" onClick={() => onNaviguer('site')}><div><strong>{prieres} demande{prieres > 1 ? 's' : ''} de prière</strong><small>Reçue{prieres > 1 ? 's' : ''} depuis le site public</small></div><span>›</span></button>}
+        {contacts > 0 && <button className="pr-ligne pr-lien" onClick={() => onNaviguer('site')}><div><strong>{contacts} message{contacts > 1 ? 's' : ''} de contact</strong><small>À lire et à traiter</small></div><span>›</span></button>}
       </section>
 
-      <div className="tb-grille">
-        <section className="tb-bloc tb-pleine">
-          <h2>À traiter {aTraiter > 0 && <span className="tb-pastille">{aTraiter}</span>}</h2>
-          {aTraiter === 0 && <p className="tb-vide">Rien en attente. Tout est à jour.</p>}
-          {virements.map((v) => (
-            <div key={v.id} className="tb-ligne">
-              <div><strong>{branches.find((b) => b.id === v.brancheId)?.nom ?? 'Église'}</strong><small>Reversement de {fcfa(v.montant)}{v.reference ? ` · réf. ${v.reference}` : ''}</small></div>
-              <button className="tb-bouton" onClick={() => onValider(v).then(() => setValides((x) => [...x, v.id]))}>Valider</button>
+      {mere && (
+        <button className="pr-mere" onClick={() => onNaviguer('mere:supervision')}>
+          <span className="pr-mere-ic">⛪</span>
+          <span><small>{mere.direction === 'pasteur' ? 'Église mère · supervision' : 'Église mère · vous la dirigez'}</small><strong>{mere.nom}</strong></span>
+          <span className="pr-fleche">›</span>
+        </button>
+      )}
+
+      <div className="pr-colonnes">
+        <section className="pr-carte">
+          <h2>Reversements du mois <small>25 % des entrées</small></h2>
+          {s.parEglise.length === 0 && <p className="pr-vide">Aucune église enregistrée.</p>}
+          {s.parEglise.map((e) => (
+            <div key={e.id} className="pr-rev">
+              <div><strong>{e.nom}</strong><small>{e.du > 0 ? `À reverser : ${fcfa(e.du)}` : 'Aucune entrée ce mois'}</small></div>
+              <span className={`pr-chip pr-${e.etat}`}>{{ valide: 'Reçu', declare: 'Déclaré', adeclarer: 'À déclarer', rien: '—' }[e.etat]}</span>
             </div>
           ))}
-          {prieres > 0 && (
-            <button className="tb-ligne tb-lien" onClick={() => onNaviguer('site')}>
-              <div><strong>{prieres} demande{prieres > 1 ? 's' : ''} de prière</strong><small>Reçue{prieres > 1 ? 's' : ''} depuis le site public</small></div><span aria-hidden="true">›</span>
-            </button>
-          )}
-          {contacts > 0 && (
-            <button className="tb-ligne tb-lien" onClick={() => onNaviguer('site')}>
-              <div><strong>{contacts} message{contacts > 1 ? 's' : ''} de contact</strong><small>À lire et à traiter</small></div><span aria-hidden="true">›</span>
-            </button>
-          )}
         </section>
 
-        <section className="tb-bloc">
-          <h2>Entrées et sorties, 6 derniers mois</h2>
-          <div className="tb-barres" role="img" aria-label="Entrées et sorties des caisses par mois">
-            {stats.mois.map((m) => (
-              <div key={m.cle} className="tb-mois">
-                <div className="tb-colonnes">
-                  <span className="tb-barre tb-entree" style={{ height: `${(m.entrees / maxMois) * 100}%` }} title={`Entrées ${fcfa(m.entrees)}`} />
-                  <span className="tb-barre tb-sortie" style={{ height: `${(m.sorties / maxMois) * 100}%` }} title={`Sorties ${fcfa(m.sorties)}`} />
+        <section className="pr-carte">
+          <h2>Entrées et sorties <small>6 derniers mois</small></h2>
+          <div className="pr-barres" role="img" aria-label="Entrées et sorties par mois">
+            {s.mois.map((m) => (
+              <div key={m.cle} className="pr-mois">
+                <div className="pr-cols">
+                  <span className="pr-in" style={{ height: `${(m.entrees / max) * 100}%` }} title={`Entrées ${fcfa(m.entrees)}`} />
+                  <span className="pr-out" style={{ height: `${(m.sorties / max) * 100}%` }} title={`Sorties ${fcfa(m.sorties)}`} />
                 </div>
-                <small>{m.label}</small>
-                <small className="tb-val">{court(m.entrees)}</small>
+                <small>{m.label}</small><small className="pr-val">{court(m.entrees)}</small>
               </div>
             ))}
           </div>
-          <p className="tb-legende"><i className="tb-pt tb-entree" /> Entrées <i className="tb-pt tb-sortie" /> Sorties</p>
+          <p className="pr-leg"><i className="pr-in" /> Entrées <i className="pr-out" /> Sorties</p>
         </section>
 
-        <section className="tb-bloc">
-          <h2>Membres</h2>
-          <p className="tb-gros">{donnees.pret ? stats.total : '…'} <small>enregistrés</small></p>
-          <div className="tb-empile" role="img" aria-label="Répartition des membres par statut">
-            {STATUTS.map(([k, , c]) => stats.total > 0 && <span key={k} style={{ flex: stats.parStatut[k], background: c }} />)}
-          </div>
-          <ul className="tb-repartition">
-            {STATUTS.map(([k, l, c]) => <li key={k}><i className="tb-pt" style={{ background: c }} />{l}<b>{stats.parStatut[k]}</b></li>)}
-          </ul>
+        <section className="pr-carte">
+          <h2>Les membres <small>{s.total} enregistrés</small></h2>
+          <div className="pr-empile" role="img" aria-label="Répartition des membres">{s.total > 0 && s.parStatut.map((i) => <span key={i.label} style={{ flex: i.n || 0, background: i.couleur }} />)}</div>
+          <ul className="pr-legende">{s.parStatut.map((i) => <li key={i.label}><i style={{ background: i.couleur }} />{i.label}<b>{i.n}</b></li>)}</ul>
         </section>
 
-        <section className="tb-bloc tb-pleine">
-          <h2>Les églises</h2>
-          {branches.length === 0 && (
-            <p className="tb-vide">Aucune église enregistrée. <button className="tb-texte" onClick={() => onNaviguer('branches')}>Ajouter la première église</button></p>
-          )}
-          {stats.parEglise.map((e) => {
-            const part = e.seuilSolde ? Math.min(100, Math.max(0, (e.solde / e.seuilSolde) * 100)) : 0
-            return (
-              <button key={e.id} className="tb-eglise" onClick={() => onNaviguer('branches')}>
-                <div><strong>{e.nom}</strong><small>{e.ville}{e.pasteurNom ? ` · ${e.pasteurNom}` : ''}</small></div>
-                <div className="tb-eglise-chiffres"><b>{e.nbMembres}</b><small>membres</small></div>
-                <div className="tb-eglise-chiffres"><b>{court(e.solde)}</b><small>en caisse</small>
-                  {e.seuilSolde > 0 && <span className="tb-jauge"><span style={{ width: `${part}%` }} className={part >= 100 ? 'tb-plein' : ''} /></span>}
-                </div>
-              </button>
-            )
-          })}
+        <section className="pr-carte">
+          <h2>Activité récente <small>toutes les caisses</small></h2>
+          {s.recents.length === 0 && <p className="pr-vide">Aucun mouvement de caisse enregistré.</p>}
+          {s.recents.map((m, i) => (
+            <div key={i} className="pr-act">
+              <span className={`pr-fleche-act ${m.type === 'depense' ? 'pr-sortie' : 'pr-entree'}`}>{m.type === 'depense' ? '↗' : '↙'}</span>
+              <div><strong>{m.description || NATURE[m.type] || 'Mouvement'}</strong><small>{m.eglise} · {dateCourte(m.date)}</small></div>
+              <b className={m.type === 'depense' ? 'pr-neg' : 'pr-pos'}>{m.type === 'depense' ? '−' : '+'}{court(m.montant)}</b>
+            </div>
+          ))}
         </section>
       </div>
 
-      <nav className="tb-acces" aria-label="Accès rapides">
-        {[['utilisateurs', 'Comptes'], ['rapports', 'Rapports financiers'], ['projets', 'Projets du BEN'], ['communication', 'Communication'], ['messages', 'Messages'], ['site', 'Site public']].map(([p, t]) => (
-          <button key={p} onClick={() => onNaviguer(p)}>{t}</button>
+      <section className="pr-eglises">
+        <h2>Les églises</h2>
+        {s.parEglise.length === 0 && <p className="pr-vide">Aucune église enregistrée. <button className="pr-texte" onClick={() => onNaviguer('branches')}>Créer la première église</button></p>}
+        <div className="pr-grille">
+          {s.parEglise.map((e) => {
+            const part = e.seuilSolde ? Math.min(100, Math.max(0, (e.solde / e.seuilSolde) * 100)) : 0
+            return (
+              <button key={e.id} className="pr-egl" onClick={() => onNaviguer('branches')}>
+                <div className="pr-egl-tete"><strong>{e.nom}</strong>{e.mere && <span className="pr-badge">mère</span>}</div>
+                <small>{[e.ville, e.mere && e.direction === 'archeveque' ? "Archevêque" : e.pasteurNom].filter(Boolean).join(' · ') || 'Sans pasteur nommé'}</small>
+                <div className="pr-egl-chiffres"><span><b>{e.nb}</b> membres</span><span><b>{court(e.solde)}</b> en caisse</span></div>
+                {e.seuilSolde > 0 && <span className="pr-jauge"><span style={{ width: `${part}%` }} className={part >= 100 ? 'pr-plein' : ''} /></span>}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      <nav className="pr-tuiles" aria-label="Accès rapides">
+        {[['utilisateurs', '👤', 'Comptes'], ['rapports', '📊', 'Rapports'], ['projets', '📦', 'Projets du BEN'], ['communication', '📣', 'Communication'], ['messages', '✍️', 'Messages'], ['site', '🌐', 'Site public']].map(([p, ic, t]) => (
+          <button key={p} onClick={() => onNaviguer(p)}><span>{ic}</span>{t}</button>
         ))}
       </nav>
     </div>
