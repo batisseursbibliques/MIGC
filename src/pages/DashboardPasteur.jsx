@@ -17,7 +17,7 @@ import { BoutonAbsence } from './GestionAbsence.jsx'
 import BoutonPdf from '../components/BoutonPdf.jsx'
 import { exporterMembres, exporterPVs, exporterCourriers, exporterJournalCaisse } from '../lib/exports.js'
 import RappelsEquipe from './RappelsEquipe.jsx'
-import { AccueilPasteur } from './AccueilRoles.jsx'
+import { AccueilPasteur } from './AccueilEglise.jsx'
 const TYPES_MOUVEMENT = [
   { valeur: 'dime', label: 'Dîme' },
   { valeur: 'collecte', label: 'Collecte' },

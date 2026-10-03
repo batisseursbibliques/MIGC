@@ -6,53 +6,6 @@ import { Entete, Chiffres, Chiffre, Grille, Bloc, Vide, Ligne, Barres, Repartiti
 const ecoute = (ref, set, avec = (d) => d) => onSnapshot(ref, (s) => set(s.docs.map((d) => avec({ id: d.id, ...d.data() }, d))), () => set([]))
 const soldeDe = (mv) => mv.reduce((a, m) => (m.type === 'depense' ? a - m.montant : a + m.montant), 0)
 
-// ── Pasteur ──────────────────────────────────────────────────────────────────
-export function AccueilPasteur({ profil, branche, mouvements, membres, solde, seuil, depasseSeuil, onNaviguer }) {
-  const [cultes, setCultes] = useState([])
-  const [virements, setVirements] = useState([])
-  useEffect(() => ecoute(query(collection(db, 'branches', profil.brancheId, 'cultes'), orderBy('date', 'desc')), setCultes), [profil.brancheId])
-  useEffect(() => ecoute(collection(db, 'branches', profil.brancheId, 'virements'), setVirements), [profil.brancheId])
-
-  const mois = useMemo(() => sixMois(mouvements), [mouvements])
-  const courant = mois[5]
-  const revenusMois = courant.entrees
-  const du = Math.round(revenusMois * 0.25)
-  const vMois = virements.find((v) => v.mois === moisCourant())
-  const etatRev = vMois ? (vMois.statut === 'valide' ? 'Validé' : 'Déclaré') : du > 0 ? 'À déclarer' : '—'
-  const actifs = membres.filter((m) => m.statut !== 'parti').length
-  const aujourdhui = new Date().toISOString().slice(0, 10)
-  const prochain = [...cultes].filter((c) => c.date >= aujourdhui).sort((a, b) => a.date.localeCompare(b.date))[0]
-  const parStatut = COULEURS_STATUT.map(([k, label, couleur]) => ({ label, couleur, n: membres.filter((m) => m.statut === k).length }))
-  const alertes = [
-    depasseSeuil && { t: 'Le solde dépasse le plafond autorisé', d: `Solde ${fcfa(solde)} pour un plafond de ${fcfa(seuil)}. Un reversement vers le BEN est requis.`, p: 'tresorerie' },
-    du > 0 && !vMois && { t: 'Reversement de 25 % du mois à déclarer', d: `Montant prévu : ${fcfa(du)}. Il est déclaré par le trésorier de l'église.`, p: 'tresorerie' },
-  ].filter(Boolean)
-
-  return (
-    <div className="tb">
-      <Entete titre={profil.archeveque ? `${salutation()}, Archevêque.` : `${salutation()}, Pasteur ${profil.nom ?? ''}.`} sous={branche?.nom ? `${branche.nom}${branche.ville ? ` · ${branche.ville}` : ''}` : undefined} />
-      <Chiffres>
-        <Chiffre valeur={actifs} label="Membres actifs" onClick={() => onNaviguer('secretariat')} />
-        <Chiffre valeur={fcfa(solde)} label="Solde de la caisse" alerte={depasseSeuil} onClick={() => onNaviguer('tresorerie')} />
-        <Chiffre valeur={fcfa(revenusMois)} label="Entrées du mois" large onClick={() => onNaviguer('tresorerie')} />
-        <Chiffre valeur={etatRev} label={`Reversement du mois (${fcfa(du)})`} alerte={etatRev === 'À déclarer'} onClick={() => onNaviguer('tresorerie')} />
-      </Chiffres>
-      <Grille>
-        <Bloc titre="À surveiller" pleine pastille={alertes.length}>
-          {alertes.length === 0 && <Vide>Rien à signaler. La caisse est dans les limites autorisées.</Vide>}
-          {alertes.map((a) => <Ligne key={a.t} titre={a.t} detail={a.d} onClick={() => onNaviguer(a.p)} />)}
-        </Bloc>
-        <Bloc titre="Prochain culte">
-          {prochain ? <Ligne titre={`${dateCourte(prochain.date)}${prochain.heure ? ` à ${prochain.heure}` : ''}`} detail={[prochain.theme, prochain.predicateur].filter(Boolean).join(' · ') || 'Programme à préciser'} onClick={() => onNaviguer('cultes')} /> : <Vide>Aucun culte programmé.</Vide>}
-        </Bloc>
-        <Bloc titre="Membres"><p className="tb-gros">{membres.length} <small>enregistrés</small></p><Repartition items={parStatut} total={membres.length} /></Bloc>
-        <Bloc titre="Entrées et sorties, 6 derniers mois" pleine><Barres mois={mois} /></Bloc>
-      </Grille>
-      <Acces onNaviguer={onNaviguer} liens={[['departements', 'Départements'], ['rappels', "Rappels à l'équipe"], ['secretariat', 'Secrétariat'], ['tresorerie', 'Trésorerie'], ['projets', 'Projets'], ['messages', 'Mes messages'], ['cultes', 'Cultes'], ['evenements', 'Événements']]} />
-    </div>
-  )
-}
-
 // ── Secrétaire Général ───────────────────────────────────────────────────────
 export function AccueilSG({ profil, onNaviguer }) {
   const [branches, setBranches] = useState([]); const [membres, setMembres] = useState([])
