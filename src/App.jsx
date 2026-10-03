@@ -302,7 +302,7 @@ function Contenu() {
 
       {/* Contenu */}
       <main className="contenu">
-        <PageContenu profil={profil} pageActive={pageActive} deconnexion={deconnexion} onNaviguer={setPageActive} />
+        <PageContenu profil={profil} pageActive={pageActive} deconnexion={deconnexion} onNaviguer={setPageActive} mere={mere} />
         {mdpOuvert && <ChangerMotDePasse onFermer={() => setMdpOuvert(false)} />}
       </main>
     </div>
@@ -310,7 +310,7 @@ function Contenu() {
 }
 
 // ── Routeur de page ───────────────────────────────────────────────────────────
-function PageContenu({ profil, pageActive, deconnexion, onNaviguer }) {
+function PageContenu({ profil, pageActive, deconnexion, onNaviguer, mere }) {
   const role = profil.role
 
   if (role === 'national') return <DashboardNationalAvecAbsence profil={profil} page={pageActive} deconnexion={deconnexion} onNaviguer={onNaviguer} mere={mere} />

@@ -7,20 +7,12 @@ import { MembresDepartement, TachesDepartement } from './GestionDepartement.jsx'
 export default function DashboardDepartement({ profil, page = 'comptes-rendus' }) {
   const { brancheId, departementId } = profil
 
-  // Sécurité : si le profil est incomplet (pas de département assigné), on affiche un message clair.
-  if (!brancheId || !departementId) {
-    return (
-      <div className="ecran-centre">
-        <p>Ce compte n'est pas encore assigné à un département. Contactez le pasteur ou le responsable de l'application.</p>
-      </div>
-    )
-  }
-
   const onglet = page
   const [contenu, setContenu] = useState('')
   const [comptesRendus, setComptesRendus] = useState([])
 
   useEffect(() => {
+    if (!brancheId || !departementId) return
     const q = query(
       collection(db, 'branches', brancheId, 'departements', departementId, 'comptesRendus'),
       orderBy('date', 'desc'),
@@ -37,6 +29,15 @@ export default function DashboardDepartement({ profil, page = 'comptes-rendus' }
       auteurUid: profil.uid,
     })
     setContenu('')
+  }
+
+  // Sécurité : si le profil est incomplet (pas de département assigné), on affiche un message clair.
+  if (!brancheId || !departementId) {
+    return (
+      <div className="ecran-centre">
+        <p>Ce compte n'est pas encore assigné à un département. Contactez le pasteur ou le responsable de l'application.</p>
+      </div>
+    )
   }
 
   return (

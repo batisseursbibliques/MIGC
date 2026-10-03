@@ -149,7 +149,7 @@ function FormulaireCreerProjet({ brancheId, uid, onRetour }) {
 
   return (
     <div>
-      <div className="barre-titre"><button className="bouton-lien" onClick={onRetour}>← Retour aux projets</button><BoutonPdf label="Ce projet en PDF" onExport={() => exporterProjet(projet, contributions)} /></div>
+      <button className="bouton-lien" onClick={onRetour} style={{ marginBottom: '1rem' }}>← Retour aux projets</button>
       <section className="carte" style={{ maxWidth: '520px' }}>
         <h2 className="titre-carte">Créer un nouveau projet</h2>
         <form onSubmit={creer} className="formulaire">
@@ -224,7 +224,7 @@ function DetailProjet({ projet, brancheId, uid, lectureSeule, onRetour }) {
 
   return (
     <div>
-      <button className="bouton-lien" onClick={onRetour} style={{ marginBottom: '1rem' }}>← Retour aux projets</button>
+      <div className="barre-titre"><button className="bouton-lien" onClick={onRetour}>← Retour aux projets</button><BoutonPdf label="Ce projet en PDF" onExport={() => exporterProjet(projet, contributions)} /></div>
 
       {/* En-tête du projet */}
       <section className="carte" style={{ marginBottom: '1.5rem' }}>
