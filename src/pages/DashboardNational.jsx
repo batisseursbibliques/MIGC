@@ -13,8 +13,9 @@ import GestionMessages from './GestionMessages.jsx'
 import DashboardUtilisateurs from './DashboardUtilisateurs.jsx'
 import GestionSite from './GestionSite.jsx'
 import TableauDeBordNational from './TableauDeBordNational.jsx'
+import DashboardPasteur from './DashboardPasteur.jsx'
 
-export default function DashboardNational({ page = 'vue', deconnexion, onNaviguer = () => {} }) {
+export default function DashboardNational({ page = 'vue', deconnexion, onNaviguer = () => {}, mere = null }) {
   const { user, profil } = useAuth()
   const onglet = page
   const [branches, setBranches] = useState([])
@@ -32,6 +33,19 @@ export default function DashboardNational({ page = 'vue', deconnexion, onNavigue
       valideParUid: user.uid,
       dateValidation: serverTimestamp(),
     })
+  }
+
+  // Pages de l'église mère : l'Archevêque agit comme pasteur responsable (ou en lecture seule s'il a nommé un pasteur)
+  if (onglet.startsWith('mere:')) {
+    if (!mere) return <p className="note">Aucune église mère n'est désignée. Créez-la dans « Églises locales ».</p>
+    return (
+      <DashboardPasteur
+        profil={{ ...profil, role: 'pasteur', brancheId: mere.id, uid: user.uid, archeveque: true }}
+        page={onglet.slice(5)}
+        lectureSeule={mere.direction === 'pasteur'}
+        onNaviguer={(p) => onNaviguer(`mere:${p}`)}
+      />
+    )
   }
 
   return (

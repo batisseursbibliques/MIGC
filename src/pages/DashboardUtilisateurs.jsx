@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth'
-import {
-  collection, doc, setDoc, updateDoc, onSnapshot, query, where, orderBy,
-} from 'firebase/firestore'
-import { db, getSecondaryApp } from '../lib/firebase.js'
+import { collection, onSnapshot, query, where, orderBy } from 'firebase/firestore'
+import { db } from '../lib/firebase.js'
+import { creerCompte, messageErreurCompte, nommerPasteur, ROLES_LOCAUX } from '../lib/comptes.js'
 
 export default function DashboardUtilisateurs({ role, brancheId }) {
   const [utilisateurs, setUtilisateurs] = useState([])
@@ -19,8 +17,7 @@ export default function DashboardUtilisateurs({ role, brancheId }) {
   const [brancheCible, setBrancheCible] = useState(brancheId || '')
   const [departementCible, setDepartementCible] = useState('')
   const [statutMessage, setStatutMessage] = useState(null)
-  const [dernierUid, setDernierUid] = useState(null)
-  const [enCours, setEnCours] = useState(false)
+    const [enCours, setEnCours] = useState(false)
 
   const estGestionnaire = role === 'national' || role === 'admin'
 
@@ -36,58 +33,41 @@ export default function DashboardUtilisateurs({ role, brancheId }) {
     return onSnapshot(q, (snap) => setBranches(snap.docs.map((d) => ({ id: d.id, ...d.data() }))))
   }, [role])
 
+  // Départements : ceux de l'église du pasteur, ou de l'église choisie par l'Archevêque
+  const brancheDepts = role === 'pasteur' ? brancheId : (roleCree === 'departement' ? brancheCible : '')
   useEffect(() => {
-    if (role !== 'pasteur' || !brancheId) return
-    const q = query(collection(db, 'branches', brancheId, 'departements'), orderBy('nom'))
+    if (!brancheDepts) { setDepartements([]); return }
+    const q = query(collection(db, 'branches', brancheDepts, 'departements'), orderBy('nom'))
     return onSnapshot(q, (snap) => setDepartements(snap.docs.map((d) => ({ id: d.id, ...d.data() }))))
-  }, [role, brancheId])
+  }, [brancheDepts])
 
-  async function creerCompte(e) {
+  async function creerCompteSubmit(e) {
     e.preventDefault()
     setStatutMessage(null)
     setEnCours(true)
     const brancheFinale = estGestionnaire ? brancheCible : brancheId
-
-    const authSecondaire = getAuth(getSecondaryApp())
-
+    const eglise = branches.find((b) => b.id === brancheFinale)
     try {
-      const identifiants = await createUserWithEmailAndPassword(authSecondaire, email, motDePasse)
-      const nouvelUid = identifiants.user.uid
-
-      const donneesProfil = {
-        nom, role: roleCree,
-        brancheId: brancheFinale || null,
-        departementId: null,
-        pays: pays || null,
-      }
-      if (roleCree === 'departement') donneesProfil.departementId = departementCible || null
-
-      await setDoc(doc(db, 'utilisateurs', nouvelUid), donneesProfil)
-
-      if (roleCree === 'departement' && departementCible) {
-        await updateDoc(doc(db, 'branches', brancheFinale, 'departements', departementCible), {
-          responsableUid: nouvelUid,
-        })
-      }
-
-      setDernierUid({ uid: nouvelUid, ...donneesProfil })
-      setStatutMessage({ type: 'succes', texte: 'Compte créé. Transmettez les informations ci-dessous au gestionnaire technique pour activation.' })
-      setNom('')
-      setEmail('')
-      setMotDePasse('')
+      if (roleCree === 'pasteur' && eglise?.mere && eglise.direction === 'archeveque' &&
+        !window.confirm("Ce pasteur prendra la direction de l'église mère et vous passerez à la supervision générale. Continuer ?")) { setEnCours(false); return }
+      const { uid } = await creerCompte({
+        nom, email, motDePasse, role: roleCree, brancheId: brancheFinale || null,
+        departementId: roleCree === 'departement' ? (departementCible || null) : null, pays: pays || null,
+      })
+      if (roleCree === 'pasteur' && brancheFinale) await nommerPasteur(brancheFinale, uid, nom)
+      setStatutMessage({ type: 'succes', texte: `Compte créé pour ${nom}. Il peut se connecter tout de suite avec son e-mail et ce mot de passe temporaire ; il sera invité à le changer.` })
+      setNom(''); setEmail(''); setMotDePasse('')
     } catch (err) {
-      setStatutMessage({ type: 'erreur', texte: "Erreur : " + (err.message || 'création impossible') })
-    } finally {
-      await authSecondaire.signOut().catch(() => {})
-      setEnCours(false)
+      setStatutMessage({ type: 'erreur', texte: messageErreurCompte(err) })
     }
+    setEnCours(false)
   }
 
   return (
     <div className="grille-deux">
       <section className="carte">
         <h2 className="titre-carte">Créer un compte</h2>
-        <form onSubmit={creerCompte} className="formulaire">
+        <form onSubmit={creerCompteSubmit} className="formulaire">
           <input type="text" placeholder="Nom complet" value={nom} onChange={(e) => setNom(e.target.value)} className="champ-saisie" required />
           <input type="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} className="champ-saisie" required />
           <input
@@ -114,18 +94,19 @@ export default function DashboardUtilisateurs({ role, brancheId }) {
                   <option value="secretaire_adjoint">Secrétaire Adjoint</option>
                   <option value="tresorier">Trésorier Local</option>
                   <option value="tresorier_adjoint">Trésorier Adjoint</option>
+                  <option value="departement">Responsable de département</option>
                 </optgroup>
               </select>
-              {['pasteur', 'pasteur_suppleant', 'secretaire', 'secretaire_adjoint', 'tresorier', 'tresorier_adjoint'].includes(roleCree) && (
+              {ROLES_LOCAUX.includes(roleCree) && (
                 <select value={brancheCible} onChange={(e) => setBrancheCible(e.target.value)} className="champ-saisie">
-                  <option value="">— Choisir la branche —</option>
-                  {branches.map((b) => <option key={b.id} value={b.id}>{b.nom}</option>)}
+                  <option value="">— Choisir l'église —</option>
+                  {[...branches].sort((a, b) => (b.mere ? 1 : 0) - (a.mere ? 1 : 0)).map((b) => <option key={b.id} value={b.id}>{b.mere ? `Église mère — ${b.nom}` : b.nom}</option>)}
                 </select>
               )}
             </>
           )}
 
-          {role === 'pasteur' && (
+          {(role === 'pasteur' || (estGestionnaire && roleCree === 'departement')) && (
             <select value={departementCible} onChange={(e) => setDepartementCible(e.target.value)} className="champ-saisie" required>
               <option value="">— Choisir le département —</option>
               {departements.map((d) => <option key={d.id} value={d.id}>{d.nom}</option>)}
@@ -135,11 +116,7 @@ export default function DashboardUtilisateurs({ role, brancheId }) {
           <button
             type="submit"
             className="bouton-principal"
-            disabled={
-              enCours
-              || (estGestionnaire && ['pasteur', 'pasteur_suppleant', 'secretaire', 'secretaire_adjoint', 'tresorier', 'tresorier_adjoint'].includes(roleCree) && !brancheCible)
-              || (role === 'pasteur' && !departementCible)
-            }
+            disabled={enCours || (estGestionnaire && ROLES_LOCAUX.includes(roleCree) && !brancheCible) || ((role === 'pasteur' || (estGestionnaire && roleCree === 'departement')) && !departementCible)}
           >
             {enCours ? 'Création…' : 'Créer le compte'}
           </button>
@@ -149,19 +126,6 @@ export default function DashboardUtilisateurs({ role, brancheId }) {
           <p className={statutMessage.type === 'erreur' ? 'alerte' : 'note'}>{statutMessage.texte}</p>
         )}
 
-        {dernierUid && (
-          <div className="carte" style={{ marginTop: '1rem', background: '#F0F6FF' }}>
-            <p className="note" style={{ marginBottom: '0.5rem' }}>
-              Informations à transmettre pour l'activation de l'accès :
-            </p>
-            <p className="etiquette" style={{ display: 'block', wordBreak: 'break-all' }}>
-              uid : {dernierUid.uid}<br />
-              rôle : {dernierUid.role}<br />
-              branche : {dernierUid.brancheId || '—'}
-              {dernierUid.departementId && <>, département : {dernierUid.departementId}</>}
-            </p>
-          </div>
-        )}
       </section>
 
       <section className="carte">
@@ -176,9 +140,7 @@ export default function DashboardUtilisateurs({ role, brancheId }) {
           {utilisateurs.length === 0 && <p className="note">Aucun compte pour l'instant.</p>}
         </ul>
         <p className="note" style={{ marginTop: '1rem' }}>
-          Un compte créé ici peut se connecter tout de suite avec son e-mail et son mot de
-          passe. L'accès aux données sera activé après la mise à jour des règles de sécurité
-          (opération technique réalisée par le gestionnaire de l'application).
+          Un compte créé ici fonctionne immédiatement : aucune autre démarche technique n'est nécessaire.
         </p>
       </section>
     </div>

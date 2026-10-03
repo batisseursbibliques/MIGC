@@ -30,7 +30,7 @@ export function AccueilPasteur({ profil, branche, mouvements, membres, solde, se
 
   return (
     <div className="tb">
-      <Entete titre={`${salutation()}, Pasteur ${profil.nom ?? ''}.`} sous={branche?.nom ? `${branche.nom}${branche.ville ? ` · ${branche.ville}` : ''}` : undefined} />
+      <Entete titre={profil.archeveque ? `${salutation()}, Archevêque.` : `${salutation()}, Pasteur ${profil.nom ?? ''}.`} sous={branche?.nom ? `${branche.nom}${branche.ville ? ` · ${branche.ville}` : ''}` : undefined} />
       <Chiffres>
         <Chiffre valeur={actifs} label="Membres actifs" onClick={() => onNaviguer('secretariat')} />
         <Chiffre valeur={fcfa(solde)} label="Solde de la caisse" alerte={depasseSeuil} onClick={() => onNaviguer('tresorerie')} />

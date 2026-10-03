@@ -4,6 +4,8 @@ import { db } from './lib/firebase.js'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import ChangerMotDePasse from './components/ChangerMotDePasse.jsx'
 import { RappelsRecus } from './pages/RappelsEquipe.jsx'
+import { collection, onSnapshot, query as requete, where as ou } from 'firebase/firestore'
+import { db as baseDb } from './lib/firebase.js'
 import { LOGO_MIGC } from './assets/logo-migc.js'
 import Tiroir from './components/Tiroir.jsx'
 
@@ -198,6 +200,11 @@ function Contenu() {
   const [tiroirOuvert, setTiroirOuvert] = useState(false)
   const [pageActive, setPageActive] = useState(null)
   const [mdpOuvert, setMdpOuvert] = useState(false)
+  const [mere, setMere] = useState(null) // église mère (vue par l'Archevêque)
+  useEffect(() => {
+    if (profil?.role !== 'national') { setMere(null); return }
+    return onSnapshot(requete(collection(baseDb, 'branches'), ou('mere', '==', true)), (s) => setMere(s.docs[0] ? { id: s.docs[0].id, ...s.docs[0].data() } : null), () => setMere(null))
+  }, [profil?.role])
   // Mot de passe temporaire : on invite l'utilisateur à le changer dès la première connexion
   useEffect(() => { if (profil?.mdpTemporaire) setMdpOuvert(true) }, [profil])
 
@@ -242,7 +249,22 @@ function Contenu() {
     )
   }
 
-  const sections = SECTIONS_PAR_ROLE[profil.role] ?? []
+  let sections = SECTIONS_PAR_ROLE[profil.role] ?? []
+  if (profil.role === 'national' && mere) {
+    const dirige = mere.direction !== 'pasteur'
+    const liens = [
+      { icone: '⛪', texte: 'Tableau de bord', page: 'mere:supervision' },
+      { icone: '👥', texte: 'Membres', page: 'mere:membres' },
+      { icone: '🙏', texte: 'Cultes', page: 'mere:cultes' },
+      { icone: '📅', texte: 'Événements', page: 'mere:evenements' },
+      { icone: '🏢', texte: 'Départements', page: 'mere:departements' },
+      ...(dirige ? [{ icone: '🔔', texte: "Rappels à l'équipe", page: 'mere:rappels' }] : []),
+      { icone: '📋', texte: 'Secrétariat', page: 'mere:secretariat' },
+      { icone: '💰', texte: 'Trésorerie', page: 'mere:tresorerie' },
+      ...(dirige ? [{ icone: '✍️', texte: 'Mes messages', page: 'mere:messages' }] : []),
+    ]
+    sections = [sections[0], { label: dirige ? `Église mère — ${mere.nom} (vous la dirigez)` : `Église mère — ${mere.nom} (supervision)`, liens }, ...sections.slice(1)]
+  }
   const labelRole = LABEL_ROLE[profil.role] ?? profil.role
 
   return (
@@ -291,7 +313,7 @@ function Contenu() {
 function PageContenu({ profil, pageActive, deconnexion, onNaviguer }) {
   const role = profil.role
 
-  if (role === 'national') return <DashboardNationalAvecAbsence profil={profil} page={pageActive} deconnexion={deconnexion} onNaviguer={onNaviguer} />
+  if (role === 'national') return <DashboardNationalAvecAbsence profil={profil} page={pageActive} deconnexion={deconnexion} onNaviguer={onNaviguer} mere={mere} />
   if (role === 'admin') return <DashboardAdmin profil={profil} page={pageActive} />
   if (role === 'vice_president') return <DashboardVicePresident profil={profil} />
   if (role === 'conseiller_national') return <DashboardConseillerNational profil={profil} page={pageActive} onNaviguer={onNaviguer} />
@@ -308,11 +330,11 @@ function PageContenu({ profil, pageActive, deconnexion, onNaviguer }) {
   return null
 }
 
-function DashboardNationalAvecAbsence({ profil, page, deconnexion, onNaviguer }) {
+function DashboardNationalAvecAbsence({ profil, page, deconnexion, onNaviguer, mere }) {
   return (
     <div>
       <BoutonAbsence roleId="national" nomTitulaire={profil?.nom ?? 'Président'} nomAdjoint="le Vice-Président" />
-      <DashboardNational page={page} deconnexion={deconnexion} onNaviguer={onNaviguer} />
+      <DashboardNational page={page} deconnexion={deconnexion} onNaviguer={onNaviguer} mere={mere} />
     </div>
   )
 }

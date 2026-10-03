@@ -57,7 +57,7 @@ export default function DashboardPasteur({ profil, lectureSeule = false, page = 
 
   return (
     <div>
-      {!lectureSeule && (
+      {!lectureSeule && !profil.archeveque && (
         <BoutonAbsence
           roleId={`pasteur_${brancheId}`}
           nomTitulaire={profil.nom}
