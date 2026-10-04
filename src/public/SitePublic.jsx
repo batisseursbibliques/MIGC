@@ -413,7 +413,6 @@ export default function SitePublic() {
           <NavLink to="/" end>Accueil</NavLink>
           {NAV.map(([to, t]) => <NavLink key={to} to={to}>{t}</NavLink>)}
           <Link to="/dons" className="s-don">Faire un don</Link>
-          <Link to="/espace" className="s-espace">Espace membres</Link>
         </nav>
       </header>
 
@@ -445,9 +444,8 @@ export default function SitePublic() {
         <div>
           <strong>Liens utiles</strong>
           {NAV.map(([to, t]) => <Link key={to} to={to}>{t}</Link>)}
-          <Link to="/espace">Espace membres</Link>
         </div>
-        <p className="s-copy">© {new Date().getFullYear()} MIGC — Tous droits réservés</p>
+        <p className="s-copy">© {new Date().getFullYear()} MIGC — Tous droits réservés <Link to="/espace" className="s-discret" aria-label="Accès réservé aux dirigeants" title="Accès dirigeants">·</Link></p>
       </footer>
     </div>
   )

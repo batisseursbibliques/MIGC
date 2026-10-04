@@ -28,7 +28,7 @@ html { scroll-behavior:smooth; scroll-padding-top:64px; }
 .s-form input,.s-form textarea { padding:.7rem; border:1px solid #D8DCEB; border-radius:8px; font:inherit; background:#fff; }
 .s-ok { color:#2E8B57; } .s-err { color:#A6402D; }
 .s-contact { list-style:none; padding:0; }
-.s-pied { text-align:center; padding:1.5rem 1rem; background:#2a0a10; color:#D8DCEB; font-size:.9rem; }
+.s-pied { text-align:center; padding:1.5rem 1rem; background:#101845; color:#D8DCEB; font-size:.9rem; }
 .s-pied a { color:var(--o); }
 @media (min-width:800px) {
   .s-burger { display:none; }
@@ -89,3 +89,7 @@ html { scroll-behavior:smooth; scroll-padding-top:64px; }
 }
 
 .s-hero { background:linear-gradient(100deg,rgba(18,26,92,.92) 0%,rgba(26,36,120,.72) 55%,rgba(18,26,92,.5) 100%); }
+
+/* Accès dirigeants : volontairement discret (un simple point en bas de page) */
+.s-pied .s-copy .s-discret { display:inline; margin:0 0 0 .35rem; padding:.4rem .6rem; color:inherit; opacity:.35; font-size:1rem; text-decoration:none; }
+.s-pied .s-copy .s-discret:hover, .s-pied .s-copy .s-discret:focus-visible { opacity:1; color:#F3E3B8; }
