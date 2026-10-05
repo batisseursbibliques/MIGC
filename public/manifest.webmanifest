@@ -1,0 +1,33 @@
+{
+  "id": "/espace/",
+  "name": "MIGC — Mission Internationale de la Gloire de Christ",
+  "short_name": "MIGC",
+  "description": "Espace de gestion de la MIGC : églises, membres, caisse, messages et rapports.",
+  "start_url": "/espace/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "fr",
+  "background_color": "#F4F5FA",
+  "theme_color": "#101845",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

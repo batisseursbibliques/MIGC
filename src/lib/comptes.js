@@ -25,6 +25,7 @@ export const messageErreurCompte = (err) => {
   if (c.includes('email-already-in-use')) return 'Cet e-mail est déjà utilisé par un autre compte.'
   if (c.includes('invalid-email')) return "L'adresse e-mail n'est pas valide."
   if (c.includes('weak-password')) return 'Le mot de passe est trop court (6 caractères minimum).'
+  if (c.includes('network')) return 'Connexion indisponible : la création d\'un compte nécessite internet. Réessayez quand le réseau est revenu.'
   if (c.includes('permission')) return "Vous n'avez pas le droit d'effectuer cette opération."
   return `Création impossible (${err?.message ?? 'erreur'}).`
 }

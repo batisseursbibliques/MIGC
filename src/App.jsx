@@ -4,6 +4,7 @@ import { db } from './lib/firebase.js'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import ChangerMotDePasse from './components/ChangerMotDePasse.jsx'
 import { RappelsRecus } from './pages/RappelsEquipe.jsx'
+import BandeauHorsLigne from './components/BandeauHorsLigne.jsx'
 import { collection, onSnapshot, query as requete, where as ou } from 'firebase/firestore'
 import { db as baseDb } from './lib/firebase.js'
 import { LOGO_MIGC } from './assets/logo-migc.js'
@@ -301,6 +302,7 @@ function Contenu() {
       />
 
       {/* Contenu */}
+      <BandeauHorsLigne />
       <main className="contenu">
         <PageContenu profil={profil} pageActive={pageActive} deconnexion={deconnexion} onNaviguer={setPageActive} mere={mere} />
         {mdpOuvert && <ChangerMotDePasse onFermer={() => setMdpOuvert(false)} />}

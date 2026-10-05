@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react'
 
+import BoutonInstaller from './BoutonInstaller.jsx'
+
 export default function Tiroir({ ouvert, onFermer, sections, pageActive, onNaviguer, nom, role, onDeconnexion, onChangerMdp }) {
   useEffect(() => {
     if (!ouvert) return
@@ -47,6 +49,7 @@ export default function Tiroir({ ouvert, onFermer, sections, pageActive, onNavig
         </div>
         {onDeconnexion && (
           <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid rgba(255,255,255,0.25)' }}>
+            <BoutonInstaller />
             {onChangerMdp && (
               <button className="tiroir-lien" onClick={() => { onFermer(); onChangerMdp() }}>
                 <span className="tiroir-lien-icone">🔑</span>Changer mon mot de passe

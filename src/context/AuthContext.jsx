@@ -16,10 +16,15 @@ export function AuthProvider({ children }) {
       if (u) {
         try {
           const snap = await getDoc(doc(db, 'utilisateurs', u.uid))
-          setProfil(snap.exists() ? { uid: u.uid, ...snap.data() } : null)
+          const p = snap.exists() ? { uid: u.uid, ...snap.data() } : null
+          setProfil(p)
+          try { if (p) localStorage.setItem('migc-profil', JSON.stringify(p)) } catch { /* stockage indisponible */ }
         } catch (e) {
           console.error('Erreur de lecture du profil :', e)
-          setProfil(null)
+          // Hors connexion et profil jamais mis en cache : on reprend la dernière copie locale du même compte
+          let copie = null
+          try { copie = JSON.parse(localStorage.getItem('migc-profil') || 'null') } catch { /* ignoré */ }
+          setProfil(copie && copie.uid === u.uid ? copie : null)
         }
       } else {
         setProfil(null)
@@ -30,7 +35,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const connexion = (email, motDePasse) => signInWithEmailAndPassword(auth, email, motDePasse)
-  const deconnexion = () => signOut(auth)
+  const deconnexion = () => { try { localStorage.removeItem('migc-profil') } catch { /* ignoré */ } return signOut(auth) }
 
   return (
     <AuthContext.Provider value={{ user, profil, chargement, connexion, deconnexion }}>

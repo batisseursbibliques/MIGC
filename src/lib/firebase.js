@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
@@ -13,7 +13,16 @@ const firebaseConfig = {
 
 // App principale (utilisateur connecté)
 const app = initializeApp(firebaseConfig)
-export const db = getFirestore(app)
+// Cache persistant sur l'appareil : les données déjà consultées restent lisibles sans connexion,
+// et les ajouts faits hors ligne sont envoyés automatiquement au retour du réseau.
+function creerBase() {
+  try {
+    return initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })
+  } catch {
+    return getFirestore(app) // navigateur sans stockage local : fonctionnement normal en ligne
+  }
+}
+export const db = creerBase()
 export const auth = getAuth(app)
 
 // App secondaire pour créer des comptes sans déconnecter l'admin
